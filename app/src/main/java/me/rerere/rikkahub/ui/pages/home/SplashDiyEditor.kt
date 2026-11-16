@@ -71,7 +71,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.OurHomeSetting
-import me.rerere.rikkahub.data.datastore.PreferencesStore
+import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SplashDiyItem
 import me.rerere.rikkahub.ui.theme.KittenPaletteSpec
@@ -354,7 +354,7 @@ fun SplashDiyFullEditorModal(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val prefStore: PreferencesStore = koinInject()
+    val prefStore: SettingsStore = koinInject()
     val homeSetting = settings.ourHomeSetting
     val palette = findKittenPalette(homeSetting.kittenPaletteId)
     val density = LocalDensity.current

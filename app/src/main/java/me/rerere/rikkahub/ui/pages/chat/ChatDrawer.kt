@@ -4,6 +4,8 @@
 
 package me.rerere.rikkahub.ui.pages.chat
 
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.offset
 import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.activity.ComponentActivity

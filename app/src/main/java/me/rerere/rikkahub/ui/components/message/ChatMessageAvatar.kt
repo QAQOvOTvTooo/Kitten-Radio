@@ -6,6 +6,7 @@
 
 package me.rerere.rikkahub.ui.components.message
 
+import androidx.compose.foundation.border
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement

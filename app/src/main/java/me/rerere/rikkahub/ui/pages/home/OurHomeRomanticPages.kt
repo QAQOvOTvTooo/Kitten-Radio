@@ -4,6 +4,7 @@
 
 package me.rerere.rikkahub.ui.pages.home
 
+import me.rerere.rikkahub.ui.theme.kittenGridBackground
 import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -2458,13 +2459,9 @@ fun DreamBubblesPage() {
                             .fillMaxSize()
                             .let { mod ->
                                 if (wallBgBitmap == null) {
-                                    mod.then(
-                                        with(me.rerere.rikkahub.ui.theme) {
-                                            Modifier.kittenGridBackground(
-                                                backgroundColor = palette.background,
-                                                gridColor = palette.gridLineColor,
-                                            )
-                                        }
+                                    mod.kittenGridBackground(
+                                        backgroundColor = palette.background,
+                                        gridColor = palette.gridLineColor,
                                     )
                                 } else mod
                             }

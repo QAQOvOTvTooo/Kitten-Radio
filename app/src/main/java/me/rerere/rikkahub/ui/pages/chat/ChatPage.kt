@@ -6,6 +6,8 @@
 
 package me.rerere.rikkahub.ui.pages.chat
 
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.text.font.FontWeight
 import android.content.ContentResolver
 import android.content.Context
 import android.graphics.Bitmap

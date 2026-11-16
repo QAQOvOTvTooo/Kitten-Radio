@@ -6,6 +6,9 @@
 
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import me.rerere.rikkahub.ui.context.LocalSettings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,7 +36,7 @@ import me.rerere.rikkahub.utils.plus
 fun SettingDisplayPage() {
     val navController = LocalNavController.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val settings by me.rerere.rikkahub.ui.hooks.rememberUserSettingsState()
+    val settings = LocalSettings.current
     var showSplashDiyEditor by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
     if (showSplashDiyEditor) {

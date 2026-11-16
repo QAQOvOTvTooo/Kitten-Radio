@@ -6,6 +6,8 @@
 
 package me.rerere.rikkahub
 
+import androidx.compose.foundation.layout.navigationBarsPadding
+import me.rerere.rikkahub.ui.theme.kittenGridBackground
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Build
@@ -1221,7 +1223,7 @@ private fun OurHomeSplashOverlay(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val scope = androidx.compose.runtime.rememberCoroutineScope()
-    val prefStore: me.rerere.rikkahub.data.datastore.PreferencesStore = org.koin.compose.koinInject()
+    val prefStore: me.rerere.rikkahub.data.datastore.SettingsStore = org.koin.compose.koinInject()
     val homeSetting = settings.ourHomeSetting
     val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(homeSetting.kittenPaletteId)
     val density = androidx.compose.ui.platform.LocalDensity.current
@@ -1263,14 +1265,10 @@ private fun OurHomeSplashOverlay(
             .fillMaxSize()
             .let { mod ->
                 if (homeSetting.enableGridBackground) {
-                    mod.then(
-                        with(me.rerere.rikkahub.ui.theme) {
-                            Modifier.kittenGridBackground(
-                                backgroundColor = palette.background,
-                                gridColor = palette.gridLineColor,
-                                cellSize = 22.dp,
-                            )
-                        }
+                    mod.kittenGridBackground(
+                        backgroundColor = palette.background,
+                        gridColor = palette.gridLineColor,
+                        cellSize = 22.dp,
                     )
                 } else {
                     mod.background(palette.background)

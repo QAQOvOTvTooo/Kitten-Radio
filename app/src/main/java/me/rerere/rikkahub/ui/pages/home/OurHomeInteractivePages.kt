@@ -4,6 +4,7 @@
 
 package me.rerere.rikkahub.ui.pages.home
 
+import androidx.compose.material3.Switch
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.BitmapFactory
@@ -388,8 +389,8 @@ fun RetroGameConsolePage() {
                             modifier = Modifier.fillMaxSize(),
                             factory = { ctx ->
                                 WebView(ctx).apply {
-                                    settings.javaScriptEnabled = true
-                                    settings.domStorageEnabled = true
+                                    this.settings.javaScriptEnabled = true
+                                    this.settings.domStorageEnabled = true
                                     webViewClient = WebViewClient()
                                     activeWebView = this
                                 }
@@ -576,8 +577,8 @@ fun RetroGameConsolePage() {
                                         modifier = Modifier.fillMaxSize(),
                                         factory = { ctx ->
                                             WebView(ctx).apply {
-                                                settings.javaScriptEnabled = true
-                                                settings.domStorageEnabled = true
+                                                this.settings.javaScriptEnabled = true
+                                                this.settings.domStorageEnabled = true
                                                 webViewClient = WebViewClient()
                                                 activeWebView = this
                                             }
@@ -2602,8 +2603,7 @@ fun StardewHomePage() {
                                         Icon(HugeIcons.Add01, null, tint = palette.primary, modifier = Modifier.size(22.dp))
                                         Spacer(Modifier.height(4.dp))
                                         Text(
-                                            text = "导入相册
-像素家具",
+                                            text = "导入相册\n像素家具",
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                             color = palette.primary,
                                             textAlign = TextAlign.Center,
