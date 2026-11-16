@@ -60,25 +60,20 @@ jobs:
             yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           fi
 
-      - name: Generate and Persist Debug Keystore if missing
+      - name: Generate and Persist Kitten-Radio Keystore if missing
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ ! -f "app/debug.keystore" ]; then
+          if [ ! -f "app/kitten_home.keystore" ]; then
             keytool -genkeypair -v \
-              -keystore app/debug.keystore \
-              -storepass android \
-              -alias androiddebugkey \
-              -keypass android \
+              -keystore app/kitten_home.keystore \
+              -storepass mianmian520 \
+              -alias linhe_mianmian \
+              -keypass mianmian520 \
               -keyalg RSA \
               -keysize 2048 \
               -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add -f app/debug.keystore
-            git commit -m "chore(build): 持久化固定 app/debug.keystore 签名以支持覆盖安装"
-            git push origin HEAD:${{ github.ref_name }}
+              -dname "CN=LinHe and MianMian,OU=KittenRadio,O=OurHome,C=CN"
           fi
 
       - name: Build Debug APK

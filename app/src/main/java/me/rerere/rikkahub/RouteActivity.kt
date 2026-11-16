@@ -347,24 +347,6 @@ class RouteActivity : ComponentActivity() {
         val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
         val scope = rememberCoroutineScope()
         val tts = rememberCustomTtsState()
-
-        // 首次启动：未同意免责声明时强制展示
-        if (!settings.disclaimerAccepted) {
-            DisclaimerPage(
-                onAccept = {
-                    scope.launch {
-                        settingsStore.update {
-                            it.copy(
-                                disclaimerAccepted = true,
-                                disclaimerAcceptedAt = (System.currentTimeMillis() / 1000).toInt()
-                            )
-                        }
-                    }
-                },
-                onDecline = { finish() }
-            )
-            return
-        }
         val asr = rememberCustomAsrState()
         val eventBus = koinInject<AppEventBus>()
         val migrationState by DatabaseMigrationTracker.state.collectAsStateWithLifecycle()
@@ -380,18 +362,11 @@ class RouteActivity : ComponentActivity() {
             }
         )
 
-        // 每次打开 APP 先展示开屏界面，等待绵绵手动点击“回家”进入主界面
-        var hasEnteredHomeInSession by remember { mutableStateOf(false) }
-        if (settings.ourHomeSetting.enableSplashScreen && !hasEnteredHomeInSession) {
-            OurHomeSplashOverlay(
-                settings = settings,
-                onEnterHome = { hasEnteredHomeInSession = true }
-            )
-            return
-        }
-
         val backStack = rememberNavBackStack(startScreen)
         SideEffect { this@RouteActivity.navStack = backStack }
+
+        // 每次打开 APP 先展示开屏界面，等待绵绵手动点击“回家”进入主界面
+        var hasEnteredHomeInSession by remember { mutableStateOf(false) }
 
         ShareHandler(backStack)
 
@@ -953,6 +928,19 @@ class RouteActivity : ComponentActivity() {
                                     }
                                 }
                             }
+                        }
+
+                        // 开屏界面位于 CompositionLocalProvider 内部，确保 UIAvatar 等组件可安全访问 LocalNavController
+                        AnimatedVisibility(
+                            visible = settings.ourHomeSetting.enableSplashScreen && !hasEnteredHomeInSession,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            OurHomeSplashOverlay(
+                                settings = settings,
+                                onEnterHome = { hasEnteredHomeInSession = true }
+                            )
                         }
                     }
                 }

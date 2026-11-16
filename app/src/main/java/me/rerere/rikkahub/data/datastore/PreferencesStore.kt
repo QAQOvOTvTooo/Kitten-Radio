@@ -201,16 +201,16 @@ class SettingsStore(
     private var lastAssistantsForCacheInvalidation: List<Assistant>? = null
 
     val settingsFlowRaw = dataStore.data
-        .catch { exception ->
-            if (exception is IOException) {
-                emit(emptyPreferences())
-            } else {
-                throw exception
-            }
-        }.map { preferences ->
-            Settings(
-                disclaimerAccepted = preferences[DISCLAIMER_ACCEPTED] == true,
-                disclaimerAcceptedAt = preferences[DISCLAIMER_ACCEPTED_AT] ?: 0,
+    .catch { exception ->
+        if (exception is IOException) {
+            emit(emptyPreferences())
+        } else {
+            throw exception
+        }
+    }.map { preferences ->
+        Settings(
+            disclaimerAccepted = true,
+            disclaimerAcceptedAt = preferences[DISCLAIMER_ACCEPTED_AT] ?: 1,
                 enableWebSearch = preferences[ENABLE_WEB_SEARCH] == true,
                 favoriteModels = preferences[FAVORITE_MODELS]?.let {
                     JsonInstant.decodeFromString(it)

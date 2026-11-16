@@ -16,11 +16,11 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "me.rerere.orangechat"
+        applicationId = "me.linhe.kittenradio"
         minSdk = 26
         targetSdk = 37
-        versionCode = 159
-        versionName = "2.2.3"
+        versionCode = 160
+        versionName = "3.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -78,10 +78,10 @@ android {
         // 避免 ~/.android/debug.keystore 因机器不同导致 adb install -r 覆盖安装失败（Failure [-99]）。
         // keystore 参数与 Android 默认 debug 签名一致：alias=androiddebugkey, password=android。
         getByName("debug") {
-            storeFile = file("debug.keystore")
-            storePassword = "android"
-            keyAlias = "androiddebugkey"
-            keyPassword = "android"
+            storeFile = file("kitten_home.keystore")
+            storePassword = "mianmian520"
+            keyAlias = "linhe_mianmian"
+            keyPassword = "mianmian520"
         }
     }
 
@@ -101,7 +101,7 @@ android {
             buildConfigField("String", "BUILD_TIME", "\"$buildTime\"")
         }
         debug {
-            applicationIdSuffix = ".liquidglass"
+            applicationIdSuffix = ".home"
             // 统一使用项目内置共享 debug keystore；若配置了 release keystore 则改用 release 签名，
             // 保证不同机器签名一致，避免覆盖安装失败（Failure [-99]）。
             signingConfig = signingConfigs.getByName(if (hasReleaseSigning) "release" else "debug")
