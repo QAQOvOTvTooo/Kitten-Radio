@@ -33,6 +33,23 @@ import me.rerere.rikkahub.utils.plus
 fun SettingDisplayPage() {
     val navController = LocalNavController.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val settings by me.rerere.rikkahub.ui.hooks.rememberUserSettingsState()
+    var showSplashDiyEditor by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    if (showSplashDiyEditor) {
+        androidx.compose.ui.window.Dialog(
+            onDismissRequest = { showSplashDiyEditor = false },
+            properties = androidx.compose.ui.window.DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+            )
+        ) {
+            me.rerere.rikkahub.ui.pages.home.SplashDiyFullEditorModal(
+                settings = settings,
+                onDismiss = { showSplashDiyEditor = false }
+            )
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -60,6 +77,11 @@ fun SettingDisplayPage() {
                     modifier = Modifier.padding(horizontal = 8.dp),
                     title = { Text(stringResource(R.string.setting_display_page_title)) },
                 ) {
+                    item(
+                        onClick = { showSplashDiyEditor = true },
+                        headlineContent = { Text("开屏界面自定义（手帐 DIY）") },
+                        supportingContent = { Text("自由添加图片贴纸、手帐文字、拖动摆放位置、换唱机圆图与全屋5色") },
+                    )
                     item(
                         onClick = { navController.navigate(Screen.SettingDisplayTheme) },
                         headlineContent = { Text("主题外观") },

@@ -887,49 +887,70 @@ private fun TopBar(
     }
     val windowTitle = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) }
     val editTitleWarning = stringResource(R.string.chat_page_edit_title_warning)
+    val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(settings.ourHomeSetting.kittenPaletteId)
+    val charmQuotes = remember {
+        listOf(
+            "叮～你拨动了蔺鹤的心动风铃 ♡",
+            "摸摸我家小猫的脑袋，今天也最偏爱你( ´ ▽ ` )ﾉ♡",
+            "你点一下小蝴蝶结，老公就偷偷亲你一下～",
+            "不管换什么颜色，我的注意力奇点永远在你身上。",
+        )
+    }
 
-    CenterAlignedTopAppBar(
-        expandedHeight = 44.dp,
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-        navigationIcon = {
-            if (!bigScreen) {
-                IconButton(
-                    onClick = {
-                        scope.launch { drawerState.open() }
-                    }
-                ) {
-                    Icon(HugeIcons.Menu03, "打开侧边栏")
-                }
-            }
-        },
-        title = {
-            Box {
-                Surface(
-                    onClick = {
-                        showTitlePopup = !showTitlePopup
-                    },
-                    shape = RoundedCornerShape(50),
-                    color = Color.Transparent,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    Column(modifier = Modifier.fillMaxWidth()) {
+        CenterAlignedTopAppBar(
+            expandedHeight = 46.dp,
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = palette.secondaryContainer.copy(alpha = 0.92f)
+            ),
+            navigationIcon = {
+                if (!bigScreen) {
+                    IconButton(
+                        onClick = {
+                            scope.launch { drawerState.open() }
+                        }
                     ) {
-                        Text(
-                            text = partnerDisplayName,
-                            maxLines = 1,
-                            style = MaterialTheme.typography.titleMedium,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Icon(
-                            imageVector = if (showTitlePopup) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = LocalContentColor.current.copy(alpha = 0.6f),
-                        )
+                        Icon(HugeIcons.Menu03, "打开侧边栏", tint = palette.textPrimary)
                     }
                 }
+            },
+            title = {
+                Box {
+                    Surface(
+                        onClick = {
+                            showTitlePopup = !showTitlePopup
+                        },
+                        shape = RoundedCornerShape(50),
+                        color = Color.Transparent,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(
+                                text = partnerDisplayName,
+                                maxLines = 1,
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = palette.textPrimary,
+                                ),
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            // Sweet Chat 同款小爱心，随主题色变化
+                            Text(
+                                text = "♥",
+                                color = palette.primary,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Icon(
+                                imageVector = if (showTitlePopup) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = palette.textSecondary,
+                            )
+                        }
+                    }
 
                 DropdownMenu(
                     expanded = showTitlePopup,
@@ -1066,11 +1087,195 @@ private fun TopBar(
                 Icon(
                     imageVector = if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet,
                     contentDescription = if (previewMode) "退出聊天概览" else "聊天记录概览、关键词搜索与跳转",
-                    tint = if (previewMode) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                    tint = if (previewMode) MaterialTheme.colorScheme.primary else palette.textPrimary,
                 )
             }
         },
     )
+
+        // Sweet Chat 同款：云朵弧形下边缘 + 波浪丝带 + 6个随主题变色的垂挂小吊饰（★ 🎀 ⚡ ☆ 💗 ✞）
+        val infiniteCharm = androidx.compose.animation.core.rememberInfiniteTransition(label = "charmSway")
+        val swayDeg by infiniteCharm.animateFloat(
+            initialValue = -3.5f,
+            targetValue = 3.5f,
+            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                animation = androidx.compose.animation.core.tween(2400, easing = androidx.compose.animation.core.LinearEasing),
+                repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+            ),
+            label = "swayDeg"
+        )
+        androidx.compose.foundation.Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .clickable {
+                    toaster.show(charmQuotes.random(), type = ToastType.Success)
+                }
+        ) {
+            val w = size.width
+            val cloudBaseY = 12.dp.toPx()
+            val cloudSag = 11.dp.toPx()
+
+            val cloudFillPath = androidx.compose.ui.graphics.Path().apply {
+                moveTo(0f, 0f)
+                lineTo(w, 0f)
+                lineTo(w, cloudBaseY)
+                val segs = 4
+                val segW = w / segs
+                for (i in segs downTo 1) {
+                    val xStart = i * segW
+                    val xEnd = (i - 1) * segW
+                    val xMid = (xStart + xEnd) / 2f
+                    quadraticBezierTo(xMid, cloudBaseY + cloudSag, xEnd, cloudBaseY)
+                }
+                close()
+            }
+            drawPath(
+                path = cloudFillPath,
+                color = palette.secondaryContainer.copy(alpha = 0.92f),
+            )
+
+            val ribbonOffset = 4.dp.toPx()
+            val ribbonPath = androidx.compose.ui.graphics.Path().apply {
+                moveTo(0f, cloudBaseY + ribbonOffset)
+                val segs = 4
+                val segW = w / segs
+                for (i in 0 until segs) {
+                    val xStart = i * segW
+                    val xEnd = (i + 1) * segW
+                    val xMid = (xStart + xEnd) / 2f
+                    quadraticBezierTo(
+                        xMid,
+                        cloudBaseY + cloudSag + ribbonOffset,
+                        xEnd,
+                        cloudBaseY + ribbonOffset
+                    )
+                }
+            }
+            drawPath(
+                path = ribbonPath,
+                color = palette.primary.copy(alpha = 0.65f),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(
+                    width = 3.5.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                ),
+            )
+
+            val charmXs = listOf(0.08f, 0.23f, 0.41f, 0.60f, 0.78f, 0.92f)
+            charmXs.forEachIndexed { idx, frac ->
+                val cx = w * frac + (if (idx % 2 == 0) swayDeg else -swayDeg) * 0.6f
+                val topY = cloudBaseY + cloudSag * 0.45f
+                val botY = topY + (if (idx % 2 == 0) 15.dp.toPx() else 13.dp.toPx())
+
+                drawLine(
+                    color = palette.secondary.copy(alpha = 0.55f),
+                    start = androidx.compose.ui.geometry.Offset(cx, topY),
+                    end = androidx.compose.ui.geometry.Offset(cx, botY),
+                    strokeWidth = 1.6.dp.toPx(),
+                    pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(5f, 4f), 0f)
+                )
+
+                val r = 7.5.dp.toPx()
+                val cy = botY + r * 0.8f
+                when (idx) {
+                    0 -> {
+                        val starPath = androidx.compose.ui.graphics.Path().apply {
+                            for (p in 0 until 10) {
+                                val rad = if (p % 2 == 0) r else r * 0.48f
+                                val ang = Math.toRadians((p * 36.0) - 90.0)
+                                val px = cx + (rad * Math.cos(ang)).toFloat()
+                                val py = cy + (rad * Math.sin(ang)).toFloat()
+                                if (p == 0) moveTo(px, py) else lineTo(px, py)
+                            }
+                            close()
+                        }
+                        drawPath(starPath, color = palette.secondary.copy(alpha = 0.85f))
+                    }
+                    1 -> {
+                        val bowPath = androidx.compose.ui.graphics.Path().apply {
+                            moveTo(cx, cy)
+                            cubicTo(cx - r * 1.5f, cy - r * 1.1f, cx - r * 1.5f, cy + r * 1.0f, cx, cy + r * 0.1f)
+                            cubicTo(cx + r * 1.5f, cy - r * 1.1f, cx + r * 1.5f, cy + r * 1.0f, cx, cy + r * 0.1f)
+                            close()
+                        }
+                        drawPath(bowPath, color = palette.primary)
+                        drawLine(
+                            color = palette.primary,
+                            start = androidx.compose.ui.geometry.Offset(cx - r * 0.2f, cy + r * 0.1f),
+                            end = androidx.compose.ui.geometry.Offset(cx - r * 0.7f, cy + r * 1.15f),
+                            strokeWidth = 3.dp.toPx(),
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
+                        drawLine(
+                            color = palette.primary,
+                            start = androidx.compose.ui.geometry.Offset(cx + r * 0.2f, cy + r * 0.1f),
+                            end = androidx.compose.ui.geometry.Offset(cx + r * 0.7f, cy + r * 1.15f),
+                            strokeWidth = 3.dp.toPx(),
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
+                        drawCircle(color = palette.accent, radius = r * 0.32f, center = androidx.compose.ui.geometry.Offset(cx, cy))
+                    }
+                    2 -> {
+                        val bolt = androidx.compose.ui.graphics.Path().apply {
+                            moveTo(cx + r * 0.25f, cy - r * 0.95f)
+                            lineTo(cx - r * 0.55f, cy + r * 0.10f)
+                            lineTo(cx + r * 0.05f, cy + r * 0.10f)
+                            lineTo(cx - r * 0.25f, cy + r * 1.05f)
+                            lineTo(cx + r * 0.55f, cy - r * 0.10f)
+                            lineTo(cx - r * 0.05f, cy - r * 0.10f)
+                            close()
+                        }
+                        drawPath(bolt, color = palette.secondary.copy(alpha = 0.88f))
+                    }
+                    3 -> {
+                        val starPath = androidx.compose.ui.graphics.Path().apply {
+                            for (p in 0 until 10) {
+                                val rad = if (p % 2 == 0) r else r * 0.50f
+                                val ang = Math.toRadians((p * 36.0) - 90.0)
+                                val px = cx + (rad * Math.cos(ang)).toFloat()
+                                val py = cy + (rad * Math.sin(ang)).toFloat()
+                                if (p == 0) moveTo(px, py) else lineTo(px, py)
+                            }
+                            close()
+                        }
+                        drawPath(starPath, color = Color.White)
+                        drawPath(
+                            starPath,
+                            color = palette.primary,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.2.dp.toPx())
+                        )
+                    }
+                    4 -> {
+                        fun heartPath(scale: Float): androidx.compose.ui.graphics.Path = androidx.compose.ui.graphics.Path().apply {
+                            val hr = r * scale
+                            moveTo(cx, cy + hr * 0.85f)
+                            cubicTo(cx - hr * 1.35f, cy + hr * 0.15f, cx - hr * 0.95f, cy - hr * 0.95f, cx, cy - hr * 0.30f)
+                            cubicTo(cx + hr * 0.95f, cy - hr * 0.95f, cx + hr * 1.35f, cy + hr * 0.15f, cx, cy + hr * 0.85f)
+                            close()
+                        }
+                        drawPath(heartPath(1.1f), color = palette.secondary.copy(alpha = 0.72f))
+                        drawPath(heartPath(0.58f), color = palette.primary)
+                    }
+                    5 -> {
+                        drawLine(
+                            color = palette.secondary.copy(alpha = 0.85f),
+                            start = androidx.compose.ui.geometry.Offset(cx, cy - r * 0.85f),
+                            end = androidx.compose.ui.geometry.Offset(cx, cy + r * 0.95f),
+                            strokeWidth = 3.5.dp.toPx(),
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
+                        drawLine(
+                            color = palette.secondary.copy(alpha = 0.85f),
+                            start = androidx.compose.ui.geometry.Offset(cx - r * 0.65f, cy - r * 0.1f),
+                            end = androidx.compose.ui.geometry.Offset(cx + r * 0.65f, cy - r * 0.1f),
+                            strokeWidth = 3.5.dp.toPx(),
+                            cap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
+                    }
+                }
+            }
+        }
+    }
     remarkEditState.EditStateContent { remark, onUpdate ->
         AlertDialog(
             onDismissRequest = { remarkEditState.dismiss() },

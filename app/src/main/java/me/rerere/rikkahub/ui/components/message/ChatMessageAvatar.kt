@@ -103,10 +103,14 @@ fun ChatMessageUserAvatar(
                     )
                 }
             }
+            val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(settings.ourHomeSetting.kittenPaletteId)
             Box(contentAlignment = Alignment.Center) {
                 UIAvatar(
                     name = nickname,
-                    modifier = Modifier.size(44.dp),
+                    modifier = Modifier
+                        .size(44.dp)
+                        .border(2.5.dp, palette.secondary.copy(alpha = 0.65f), androidx.compose.foundation.shape.CircleShape)
+                        .padding(2.dp),
                     value = avatar,
                     loading = false,
                 )
@@ -139,12 +143,16 @@ fun ChatMessageAssistantAvatar(
             verticalAlignment = Alignment.CenterVertically,
             modifier = modifier
         ) {
+            val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(settings.ourHomeSetting.kittenPaletteId)
             if (useAssistantAvatar) {
                 if (showIcon) {
                     Box(contentAlignment = Alignment.Center) {
                         UIAvatar(
                             name = assistant.name,
-                            modifier = Modifier.size(44.dp),
+                            modifier = Modifier
+                                .size(44.dp)
+                                .border(2.5.dp, palette.primary.copy(alpha = 0.85f), androidx.compose.foundation.shape.CircleShape)
+                                .padding(2.dp),
                             value = assistant.avatar,
                             loading = loading,
                         )

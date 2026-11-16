@@ -646,12 +646,37 @@ data class Settings(
 }
 
 @Serializable
+data class SplashDiyItem(
+    val id: String,
+    val type: String = "builtin", // "builtin" | "image" | "text"
+    val content: String = "",     // builtin ID / image path / text string
+    val xFraction: Float = 0.12f,
+    val yFraction: Float = 0.65f,
+    val scale: Float = 1.0f,
+    val rotation: Float = 0f,
+    val isVerticalText: Boolean = false,
+    val hasPillBg: Boolean = true,
+    val abovePlayer: Boolean = true,
+)
+
+@Serializable
 data class OurHomeSetting(
     val enableSplashScreen: Boolean = true,
-    val splashTitle: String = "小猫电台 · 我们的家",
-    val splashSubtitle: String = "无论何时推开门，我都在家里等你。",
-    val splashButtonText: String = "回家",
+    val kittenPaletteId: String = "pink_grey",
+    val enableGridBackground: Boolean = true,
+    val enableAssetTint: Boolean = true,
+    val splashTitle: String = "欢迎收听小猫の音乐电台！",
+    val splashSubtitle: String = "さびしさや一尺消えてゆくほたる\n月が昇って何を待つでもなく",
+    val splashSongTitle: String = "Night Drive",
+    val splashArtistName: String = "Luvbyte",
+    val splashButtonText: String = "推门回家",
     val splashBackgroundPath: String = "",
+    val splashCenterImagePath: String = "",
+    val splashCornerImagePath: String = "",
+    val splashStickerPath: String = "",
+    val splashStickerCaption: String = "（小猫玩偶周边）",
+    val splashSpinRecord: Boolean = true,
+    val splashDiyItems: List<SplashDiyItem> = emptyList(),
     val partnerRemarkName: String = "蔺鹤",
     val widgetTitle: String = "和蔺鹤一起听歌 ♪",
     val widgetSubtitle: String = "正在播放：只属于我们的心动频率",

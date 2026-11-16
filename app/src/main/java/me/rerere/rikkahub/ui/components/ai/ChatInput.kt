@@ -640,118 +640,142 @@ fun ChatInput(
                             }
                         }
 
+                        // Sweet Chat 同款底栏：左侧独立纯白圆形「+」号按钮 + 右侧纯白大胶囊输入框 + 右下角星星发送键
+                        val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(settings.ourHomeSetting.kittenPaletteId)
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            TextInputRow(
-                                state = state,
-                                onSendMessage = { sendMessage() },
-                                modifier = Modifier.weight(1f),
-                            )
-
-                            ActionIconButton(
-                                onClick = {
-                                    expandToggle(ExpandState.Files)
-                                }) {
-                                Icon(
-                                    imageVector = if (expand == ExpandState.Files) HugeIcons.Cancel01 else HugeIcons.Add01,
-                                    contentDescription = stringResource(R.string.more_options),
-                                    modifier = Modifier.size(20.dp),
-                                )
-                            }
-
-                            // Voice button: click to record, click again to stop and send
-                            // 通话进行中禁用, 避免两路麦克风冲突
-                            if ((asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive && state.isEmpty() && !loading) {
-                                ActionIconButton(
-                                    onClick = {
-                                        when (asrState.status) {
-                                            ASRStatus.Listening -> {
-                                                asr.stop()
-                                            }
-                                            ASRStatus.Idle, ASRStatus.Error -> {
-                                                if (!asrPermission.allRequiredPermissionsGranted) {
-                                                    asrPermission.requestPermissions()
-                                                } else {
-                                                    voiceMessageMode = true
-                                                    asr.start { transcript ->
-                                                        // Ignore transcript in voice message mode
-                                                    }
-                                                }
-                                            }
-                                            ASRStatus.Connecting, ASRStatus.Stopping -> {}
-                                        }
-                                    }
-                                ) {
-                                    if (asrState.isRecording) {
-                                        androidx.compose.material3.CircularProgressIndicator(
-                                            modifier = Modifier.size(18.dp),
-                                            strokeWidth = 2.dp,
-                                            color = MaterialTheme.colorScheme.error,
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = HugeIcons.Voice,
-                                            contentDescription = "Voice",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
+                            // 1. 左侧独立纯白正圆「+」号按钮（展开原有的五件套功能面板）
+                            Surface(
+                                onClick = { expandToggle(ExpandState.Files) },
+                                shape = CircleShape,
+                                color = Color.White,
+                                shadowElevation = 2.dp,
+                                modifier = Modifier.size(44.dp),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = if (expand == ExpandState.Files) HugeIcons.Cancel01 else HugeIcons.Add01,
+                                        contentDescription = stringResource(R.string.more_options),
+                                        tint = palette.primary,
+                                        modifier = Modifier.size(22.dp),
+                                    )
                                 }
                             }
 
-                            val showSendButton = !asrState.isRecording && (loading || !state.isEmpty() || state.messageContent.isNotEmpty())
-                            AnimatedVisibility(
-                                visible = showSendButton,
-                                enter = fadeIn() + scaleIn(),
-                                exit = fadeOut() + scaleOut(),
+                            // 2. 右侧纯白大胶囊输入框（保留原有提示文案，右下角放星星发送键）
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = Color.White,
+                                shadowElevation = 2.dp,
+                                modifier = Modifier.weight(1f),
                             ) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
+                                Row(
                                     modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .combinedClickable(
-                                            enabled = showSendButton,
-                                            onClick = {
-                                                dismissExpand()
-                                                sendMessage()
-                                            }, onLongClick = {
-                                                dismissExpand()
-                                                sendMessageWithoutAnswer()
-                                            }
-                                        )
+                                        .fillMaxWidth()
+                                        .padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 ) {
-                                    val containerColor = when {
-                                        loading -> MaterialTheme.colorScheme.errorContainer
-                                        else -> MaterialTheme.colorScheme.primary
+                                    TextInputRow(
+                                        state = state,
+                                        onSendMessage = { sendMessage() },
+                                        modifier = Modifier.weight(1f),
+                                    )
+
+                                    if ((asrState.isAvailable || asrState.isRecording) && !isVoiceCallActive && state.isEmpty() && !loading) {
+                                        ActionIconButton(
+                                            onClick = {
+                                                when (asrState.status) {
+                                                    ASRStatus.Listening -> asr.stop()
+                                                    ASRStatus.Idle, ASRStatus.Error -> {
+                                                        if (!asrPermission.allRequiredPermissionsGranted) {
+                                                            asrPermission.requestPermissions()
+                                                        } else {
+                                                            voiceMessageMode = true
+                                                            asr.start { }
+                                                        }
+                                                    }
+                                                    ASRStatus.Connecting, ASRStatus.Stopping -> {}
+                                                }
+                                            }
+                                        ) {
+                                            if (asrState.isRecording) {
+                                                androidx.compose.material3.CircularProgressIndicator(
+                                                    modifier = Modifier.size(18.dp),
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.error,
+                                                )
+                                            } else {
+                                                Icon(
+                                                    imageVector = HugeIcons.Voice,
+                                                    contentDescription = "Voice",
+                                                    tint = palette.textSecondary,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
                                     }
-                                    val contentColor = when {
-                                        loading -> MaterialTheme.colorScheme.onErrorContainer
-                                        else -> MaterialTheme.colorScheme.onPrimary
+
+                                    // 3. 右下角五角星发送键（参考图同款星星位置，有内容时高亮主题色，点击发送/停止）
+                                    val canAct = !asrState.isRecording && (loading || !state.isEmpty() || state.messageContent.isNotEmpty())
+                                    val starColor = when {
+                                        loading -> MaterialTheme.colorScheme.error
+                                        canAct -> palette.primary
+                                        else -> palette.secondary.copy(alpha = 0.55f)
                                     }
-                                    Surface(
-                                        modifier = Modifier.fillMaxSize(),
-                                        shape = CircleShape,
-                                        color = containerColor,
-                                        content = {})
-                                    if (loading) {
-                                        KeepScreenOn()
-                                        Icon(
-                                            imageVector = HugeIcons.Cancel01,
-                                            contentDescription = stringResource(R.string.stop),
-                                            tint = contentColor,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    } else {
-                                        Icon(
-                                            imageVector = HugeIcons.ArrowUp02,
-                                            contentDescription = stringResource(R.string.send),
-                                            tint = contentColor,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .size(38.dp)
+                                            .clip(CircleShape)
+                                            .combinedClickable(
+                                                enabled = canAct,
+                                                onClick = {
+                                                    dismissExpand()
+                                                    sendMessage()
+                                                },
+                                                onLongClick = {
+                                                    dismissExpand()
+                                                    sendMessageWithoutAnswer()
+                                                }
+                                            )
+                                    ) {
+                                        if (loading) {
+                                            KeepScreenOn()
+                                        }
+                                        androidx.compose.foundation.Canvas(modifier = Modifier.size(30.dp)) {
+                                            val cx = size.width / 2f
+                                            val cy = size.height / 2f
+                                            val rOuter = size.minDimension * 0.46f
+                                            val rInner = rOuter * 0.54f
+                                            val starPath = androidx.compose.ui.graphics.Path().apply {
+                                                for (p in 0 until 10) {
+                                                    val rad = if (p % 2 == 0) rOuter else rInner
+                                                    val ang = Math.toRadians((p * 36.0) - 90.0)
+                                                    val px = cx + (rad * Math.cos(ang)).toFloat()
+                                                    val py = cy + (rad * Math.sin(ang)).toFloat()
+                                                    if (p == 0) moveTo(px, py) else lineTo(px, py)
+                                                }
+                                                close()
+                                            }
+                                            drawPath(
+                                                path = starPath,
+                                                color = starColor,
+                                                style = androidx.compose.ui.graphics.drawscope.Fill,
+                                            )
+                                            if (loading) {
+                                                drawRect(
+                                                    color = Color.White,
+                                                    topLeft = androidx.compose.ui.geometry.Offset(cx - 4.dp.toPx(), cy - 4.dp.toPx()),
+                                                    size = androidx.compose.ui.geometry.Size(8.dp.toPx(), 8.dp.toPx()),
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }

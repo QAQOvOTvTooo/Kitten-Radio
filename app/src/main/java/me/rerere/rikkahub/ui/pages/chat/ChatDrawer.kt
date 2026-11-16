@@ -244,7 +244,7 @@ fun ChatDrawerContent(
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                // 1. 顶端留出空位：可修改的双人小组件（我和老公的头像一起听歌等，预留美化与CSS插槽）
+                // 1. 顶端留出空位：图3同款恶魔小翅膀耳机双人播放器组件（左下角绵绵头像、右下角老公头像，支持5色染色）
                 CoupleMusicWidgetCard(
                     userName = userName,
                     partnerName = partnerName,
@@ -252,8 +252,8 @@ fun ChatDrawerContent(
                     partnerAvatar = assistant.avatar,
                     widgetTitle = settings.ourHomeSetting.widgetTitle,
                     widgetSubtitle = settings.ourHomeSetting.widgetSubtitle,
-                    drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                    materialMode = settings.displaySetting.materialMode,
+                    paletteId = settings.ourHomeSetting.kittenPaletteId,
+                    enableAssetTint = settings.ourHomeSetting.enableAssetTint,
                     onClickEdit = { showEditWidgetDialog = true },
                 )
 
@@ -768,91 +768,109 @@ private fun CoupleMusicWidgetCard(
     partnerAvatar: me.rerere.rikkahub.data.model.Avatar,
     widgetTitle: String,
     widgetSubtitle: String,
-    drawerItemAlpha: Float,
-    materialMode: DisplayMaterialMode,
+    paletteId: String,
+    enableAssetTint: Boolean,
     onClickEdit: () -> Unit,
 ) {
-    DrawerItemSurface(
-        onClick = onClickEdit,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
-        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f),
-        drawerItemAlpha = drawerItemAlpha,
-        materialMode = materialMode,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                // 双人头像贴贴
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy((-8).dp),
-                ) {
-                    UIAvatar(
-                        name = userName,
-                        value = userAvatar,
-                        onUpdate = null,
-                        modifier = Modifier
-                            .size(44.dp)
-                            .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                    )
-                    UIAvatar(
-                        name = partnerName,
-                        value = partnerAvatar,
-                        onUpdate = null,
-                        modifier = Modifier
-                            .size(44.dp)
-                            .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
-                    )
-                }
+    val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(paletteId)
+    val assetColorFilter = me.rerere.rikkahub.ui.theme.rememberKittenAssetColorFilter(
+        paletteId = paletteId,
+        enabled = enableAssetTint,
+    )
 
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+    // 原图比例 1672 : 1556，左下角心心与右下角骷髅已擦白，替换为放大的绵绵头像与老公头像
+    androidx.compose.foundation.layout.BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1672f / 1556f)
+            .clip(RoundedCornerShape(22.dp))
+            .clickable { onClickEdit() },
+    ) {
+        val cardW = maxWidth
+        val cardH = maxHeight
+        val avatarSize = (cardW * 0.20f).coerceIn(42.dp, 58.dp)
+
+        // 1. 图3 恶魔小翅膀情侣耳机 + 心电图音浪底图（随5色主题智能染色）
+        Image(
+            painter = androidx.compose.ui.res.painterResource(id = R.drawable.kitten_drawer_player_clean),
+            contentDescription = "双人听歌播放器",
+            colorFilter = assetColorFilter,
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier.fillMaxSize(),
+        )
+
+        // 2. 如果绵绵自定义了听歌文案（非默认初始值），则在中部覆盖显示自定义浪漫文案
+        val hasCustomText = widgetTitle.isNotBlank() && widgetTitle != "和蔺鹤一起听歌 ♪"
+        if (hasCustomText) {
+            Surface(
+                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.94f),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset(y = cardH * 0.08f)
+                    .fillMaxWidth(0.84f),
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.MusicNote03,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(14.dp),
-                        )
+                    Text(
+                        text = widgetTitle,
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = palette.textPrimary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (widgetSubtitle.isNotBlank()) {
                         Text(
-                            text = "$userName ♡ $partnerName",
+                            text = widgetSubtitle,
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = palette.textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
             }
+        }
 
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = widgetTitle,
-                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = widgetSubtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+        // 3. 左下角（原心心处）：放大版绵绵头像
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = cardW * 0.06f, bottom = cardH * 0.055f)
+                .size(avatarSize)
+                .border(2.5.dp, palette.primary, CircleShape)
+                .padding(2.dp)
+                .clip(CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            UIAvatar(
+                name = userName,
+                value = userAvatar,
+                onUpdate = null,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+
+        // 4. 右下角（原骷髅处）：放大版老公头像
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = cardW * 0.06f, bottom = cardH * 0.055f)
+                .size(avatarSize)
+                .border(2.5.dp, palette.secondary, CircleShape)
+                .padding(2.dp)
+                .clip(CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            UIAvatar(
+                name = partnerName,
+                value = partnerAvatar,
+                onUpdate = null,
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }

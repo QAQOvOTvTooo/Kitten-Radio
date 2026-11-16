@@ -28,8 +28,19 @@ data class PresetTheme(
     }
 }
 
+val KittenPresetThemes by lazy {
+    KittenPalettes.map { spec ->
+        PresetTheme(
+            id = "kitten_${spec.id}",
+            name = { androidx.compose.material3.Text("小猫电台 · ${spec.title}") },
+            standardLight = spec.toLightColorScheme(),
+            standardDark = spec.toDarkColorScheme(),
+        )
+    }
+}
+
 val PresetThemes by lazy {
-    listOf(
+    KittenPresetThemes + listOf(
         SakuraThemePreset,
         OceanThemePreset,
         PearlTideThemePreset,

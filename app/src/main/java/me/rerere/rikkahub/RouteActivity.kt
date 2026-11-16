@@ -1219,10 +1219,36 @@ private fun OurHomeSplashOverlay(
     settings: me.rerere.rikkahub.data.datastore.Settings,
     onEnterHome: () -> Unit,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val prefStore: me.rerere.rikkahub.data.datastore.PreferencesStore = org.koin.compose.koinInject()
     val homeSetting = settings.ourHomeSetting
-    val assistant = settings.getCurrentAssistant()
-    val partnerName = homeSetting.partnerRemarkName.ifBlank { assistant.name.ifBlank { "蔺鹤" } }
-    val userName = settings.displaySetting.userNickname.ifBlank { "绵绵" }
+    val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(homeSetting.kittenPaletteId)
+    val density = androidx.compose.ui.platform.LocalDensity.current
+
+    fun updateHome(block: (me.rerere.rikkahub.data.datastore.OurHomeSetting) -> me.rerere.rikkahub.data.datastore.OurHomeSetting) {
+        scope.launch {
+            prefStore.update { old -> old.copy(ourHomeSetting = block(old.ourHomeSetting)) }
+        }
+    }
+
+    val centerImageLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                val dir = java.io.File(context.filesDir, "kitten_splash").apply { mkdirs() }
+                val dst = java.io.File(dir, "center_${System.currentTimeMillis()}.png")
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    dst.outputStream().use { output -> input.copyTo(output) }
+                }
+                dst.absolutePath
+            }.getOrNull()?.let { path ->
+                updateHome { it.copy(splashCenterImagePath = path) }
+            }
+        }
+    }
+
     val bgPath = homeSetting.splashBackgroundPath
     val bgBitmap = remember(bgPath) {
         if (bgPath.isNotBlank() && java.io.File(bgPath).exists()) {
@@ -1230,91 +1256,151 @@ private fun OurHomeSplashOverlay(
         } else null
     }
 
-    Box(
+    var showSongDialog by remember { mutableStateOf(false) }
+
+    androidx.compose.foundation.layout.BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .let { mod ->
+                if (homeSetting.enableGridBackground) {
+                    mod.then(
+                        with(me.rerere.rikkahub.ui.theme) {
+                            Modifier.kittenGridBackground(
+                                backgroundColor = palette.background,
+                                gridColor = palette.gridLineColor,
+                                cellSize = 22.dp,
+                            )
+                        }
+                    )
+                } else {
+                    mod.background(palette.background)
+                }
+            },
         contentAlignment = Alignment.Center,
     ) {
+        val parentWidthPx = with(density) { maxWidth.toPx() }
+        val parentHeightPx = with(density) { maxHeight.toPx() }
+
         if (bgBitmap != null) {
             androidx.compose.foundation.Image(
                 bitmap = bgBitmap,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
-                alpha = 0.35f,
+                alpha = 0.42f,
             )
         }
 
-        Column(
+        // 1. 置于播放器下方的绵绵自定义 DIY 手帐元素
+        homeSetting.splashDiyItems.filter { !it.abovePlayer }.forEach { item ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                me.rerere.rikkahub.ui.pages.home.SplashDiyElementView(
+                    item = item,
+                    palette = palette,
+                    enableAssetTint = homeSetting.enableAssetTint,
+                    parentWidthPx = parentWidthPx,
+                    parentHeightPx = parentHeightPx,
+                    isEditing = false,
+                )
+            }
+        }
+
+        // 2. 居中的图2同款 Night Drive 黑胶播放器（圆心可换图+旋转，下方歌名可改）
+        me.rerere.rikkahub.ui.pages.home.KittenNightDriveVinylCard(
+            homeSetting = homeSetting,
+            palette = palette,
+            onPickCenterImage = { centerImageLauncher.launch("image/*") },
+            onEditSongInfo = { showSongDialog = true },
+            onToggleSpin = { updateHome { it.copy(splashSpinRecord = !it.splashSpinRecord) } },
+        )
+
+        // 3. 置于播放器上方的绵绵自定义 DIY 手帐元素
+        homeSetting.splashDiyItems.filter { it.abovePlayer }.forEach { item ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                me.rerere.rikkahub.ui.pages.home.SplashDiyElementView(
+                    item = item,
+                    palette = palette,
+                    enableAssetTint = homeSetting.enableAssetTint,
+                    parentWidthPx = parentWidthPx,
+                    parentHeightPx = parentHeightPx,
+                    isEditing = false,
+                )
+            }
+        }
+
+        // 4. 最下方「推门回家」按钮
+        androidx.compose.material3.Button(
+            onClick = onEnterHome,
+            shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                containerColor = palette.primary,
+                contentColor = androidx.compose.ui.graphics.Color.White,
+            ),
             modifier = Modifier
-                .padding(horizontal = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 22.dp),
         ) {
-            // 双人头像迎接区
-            androidx.compose.foundation.layout.Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy((-12).dp),
-            ) {
-                me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                    name = userName,
-                    value = settings.displaySetting.userAvatar,
-                    onUpdate = null,
-                    modifier = Modifier
-                        .
-                        padding(2.dp)
-                        .let { m -> m.then(Modifier.background(MaterialTheme.colorScheme.surface, androidx.compose.foundation.shape.CircleShape)) }
-                )
-                me.rerere.rikkahub.ui.components.ui.UIAvatar(
-                    name = partnerName,
-                    value = assistant.avatar,
-                    onUpdate = null,
-                )
-            }
-
-            androidx.compose.material3.Surface(
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
-            ) {
-                Text(
-                    text = "$userName ♡ $partnerName · 专属私宅",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                )
-            }
-
             Text(
-                text = homeSetting.splashTitle.ifBlank { "小猫电台 · 我们的家" },
-                style = MaterialTheme.typography.headlineSmall.copy(
+                text = "♪  ${homeSetting.splashButtonText.ifBlank { "推门回家" }}  ♪",
+                style = MaterialTheme.typography.titleSmall.copy(
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
                 ),
-                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
             )
-
-            Text(
-                text = homeSetting.splashSubtitle.ifBlank { "无论何时推开门，我都在家里等你。" },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            androidx.compose.foundation.layout.Spacer(modifier = Modifier.padding(top = 12.dp))
-
-            androidx.compose.material3.Button(
-                onClick = onEnterHome,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
-                modifier = Modifier
-                    .padding(horizontal = 24.dp),
-            ) {
-                Text(
-                    text = homeSetting.splashButtonText.ifBlank { "回家" },
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
-                    ),
-                    modifier = Modifier.padding(horizontal = 28.dp, vertical = 6.dp),
-                )
-            }
         }
+    }
+
+    if (showSongDialog) {
+        var songInput by remember { mutableStateOf(homeSetting.splashSongTitle) }
+        var artistInput by remember { mutableStateOf(homeSetting.splashArtistName) }
+        var btnInput by remember { mutableStateOf(homeSetting.splashButtonText) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showSongDialog = false },
+            title = { Text("修改开屏播放器曲目") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    androidx.compose.material3.OutlinedTextField(
+                        value = songInput,
+                        onValueChange = { songInput = it },
+                        label = { Text("歌名（如 Night Drive）") },
+                        singleLine = true,
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = artistInput,
+                        onValueChange = { artistInput = it },
+                        label = { Text("歌手/副标题（如 Luvbyte）") },
+                        singleLine = true,
+                    )
+                    androidx.compose.material3.OutlinedTextField(
+                        value = btnInput,
+                        onValueChange = { btnInput = it },
+                        label = { Text("回家按钮文字") },
+                        singleLine = true,
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        updateHome {
+                            it.copy(
+                                splashSongTitle = songInput,
+                                splashArtistName = artistInput,
+                                splashButtonText = btnInput,
+                            )
+                        }
+                        showSongDialog = false
+                    }
+                ) {
+                    Text("保存")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showSongDialog = false }) {
+                    Text("取消")
+                }
+            }
+        )
     }
 }
