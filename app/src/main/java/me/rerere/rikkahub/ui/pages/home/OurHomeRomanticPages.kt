@@ -461,8 +461,8 @@ fun PartnerPhonePage() {
                                     .fillMaxWidth(),
                                 currentApp = currentApp,
                                 partnerName = partnerName,
-                                partnerAvatarPath = settings.ourHomeSetting.partnerAvatarPath,
-                                userNickname = settings.ourHomeSetting.userNickname.ifBlank { "绵绵" },
+                                partnerAvatarPath = "",
+                                userNickname = settings.displaySetting.userNickname.ifBlank { "绵绵" },
                                 phoneData = phoneData,
                                 palette = palette,
                                 assetColorFilter = assetColorFilter,
@@ -1451,7 +1451,7 @@ fun PartnerDiaryPage() {
     val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
 
     val partnerName = settings.ourHomeSetting.partnerRemarkName.ifBlank { "蔺鹤" }
-    val userNickname = settings.ourHomeSetting.userNickname.ifBlank { "绵绵" }
+    val userNickname = settings.displaySetting.userNickname.ifBlank { "绵绵" }
     val prefs = remember { context.getSharedPreferences("our_home_diary_store", Context.MODE_PRIVATE) }
 
     val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(settings.ourHomeSetting.kittenPaletteId)
@@ -2050,7 +2050,7 @@ fun DreamBubblesPage() {
     val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
 
     val partnerName = settings.ourHomeSetting.partnerRemarkName.ifBlank { "蔺鹤" }
-    val userNickname = settings.ourHomeSetting.userNickname.ifBlank { "绵绵" }
+    val userNickname = settings.displaySetting.userNickname.ifBlank { "绵绵" }
     val prefs = remember { context.getSharedPreferences("our_home_dream_store", Context.MODE_PRIVATE) }
 
     val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(settings.ourHomeSetting.kittenPaletteId)

@@ -156,7 +156,7 @@ fun RetroGameConsolePage() {
     val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
 
     val partnerName = settings.ourHomeSetting.partnerRemarkName.ifBlank { "蔺鹤" }
-    val userNickname = settings.ourHomeSetting.userNickname.ifBlank { "绵绵" }
+    val userNickname = settings.displaySetting.userNickname.ifBlank { "绵绵" }
     val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(settings.ourHomeSetting.kittenPaletteId)
     val prefs = remember { context.getSharedPreferences("our_home_game_store", Context.MODE_PRIVATE) }
 
@@ -901,7 +901,7 @@ fun MemorySanctuaryPage() {
 
     val assistant = settings.getCurrentAssistant()
     val partnerName = settings.ourHomeSetting.partnerRemarkName.ifBlank { "蔺鹤" }
-    val userNickname = settings.ourHomeSetting.userNickname.ifBlank { "绵绵" }
+    val userNickname = settings.displaySetting.userNickname.ifBlank { "绵绵" }
     val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(settings.ourHomeSetting.kittenPaletteId)
     val prefs = remember { context.getSharedPreferences("our_home_sanctuary_store", Context.MODE_PRIVATE) }
 
@@ -1986,7 +1986,7 @@ fun StardewHomePage() {
     val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
 
     val partnerName = settings.ourHomeSetting.partnerRemarkName.ifBlank { "蔺鹤" }
-    val userName = settings.ourHomeSetting.userNickname.ifBlank { "绵绵" }
+    val userName = settings.displaySetting.userNickname.ifBlank { "绵绵" }
     val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(settings.ourHomeSetting.kittenPaletteId)
     val prefs = remember { context.getSharedPreferences("our_home_2d_state", Context.MODE_PRIVATE) }
 
