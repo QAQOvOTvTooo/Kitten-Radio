@@ -3733,7 +3733,7 @@ private fun DreamBajiBadgeWidget(
         else -> 0.90f
     }
     val userScale = if (bubble.innerScale in 0.40f..1.20f) bubble.innerScale else defaultRatio
-    val innerShape = remember(bubble.innerShapeMode, bubble.frameType) {
+    val innerShape: androidx.compose.ui.graphics.Shape = remember(bubble.innerShapeMode, bubble.frameType) {
         resolveBajiInnerShape(bubble.innerShapeMode, bubble.frameType)
     }
 
