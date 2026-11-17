@@ -3685,10 +3685,10 @@ private fun resolveBajiInnerShape(shapeMode: String, frameType: String): android
     return when (effective) {
         "rounded_rect" -> RoundedCornerShape(percent = 22)
         "full" -> RoundedCornerShape(percent = 8)
-        "heart" -> androidx.compose.ui.graphics.GenericShape { size, _ ->
+        "heart" -> androidx.compose.foundation.shape.GenericShape { size, _ ->
             addPath(buildBajiHeartPath(size.width, size.height))
         }
-        "star" -> androidx.compose.ui.graphics.GenericShape { size, _ ->
+        "star" -> androidx.compose.foundation.shape.GenericShape { size, _ ->
             addPath(buildBajiStarPath(size.width, size.height))
         }
         else -> CircleShape
