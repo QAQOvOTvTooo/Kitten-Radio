@@ -39,4 +39,6 @@ _gen.py
 # 签名密钥（绝不可提交）
 *.jks
 *.keystore
+!app/kitten_home.keystore
+!app/kitten_home.keystore.b64
 keystore.properties

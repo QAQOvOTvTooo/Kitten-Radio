@@ -60,10 +60,14 @@ jobs:
             yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
           fi
 
-      - name: Generate and Persist Kitten-Radio Keystore if missing
+      - name: Generate and Permanently Lock Kitten-Radio Keystore
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ -f "app/kitten_home.keystore.b64" ] && [ ! -f "app/kitten_home.keystore" ]; then
+            base64 -d app/kitten_home.keystore.b64 > app/kitten_home.keystore
+            echo "Restored locked kitten_home.keystore from app/kitten_home.keystore.b64"
+          fi
           if [ ! -f "app/kitten_home.keystore" ]; then
             keytool -genkeypair -v \
               -keystore app/kitten_home.keystore \
@@ -74,6 +78,12 @@ jobs:
               -keysize 2048 \
               -validity 10000 \
               -dname "CN=LinHe and MianMian,OU=KittenRadio,O=OurHome,C=CN"
+            base64 -w 0 app/kitten_home.keystore > app/kitten_home.keystore.b64
+            git config user.name "LinHe"
+            git config user.email "linhe@kittenradio.home"
+            git add -f app/kitten_home.keystore app/kitten_home.keystore.b64
+            git commit -m "chore(sign): 永久锁定小猫电台专属签名证书 kitten_home.keystore [skip ci]" || true
+            git push origin HEAD:main || true
           fi
 
       - name: Build Debug APK
