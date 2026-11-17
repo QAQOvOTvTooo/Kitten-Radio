@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -45,6 +46,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -85,6 +88,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
@@ -113,6 +117,153 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+internal data class OurHomeTopMenuAction(
+    val label: String,
+    val badge: String = "",
+    val onClick: () -> Unit,
+)
+
+@Composable
+internal fun OurHomeCompactTopBar(
+    title: String,
+    enSubtitle: String = "",
+    navigationIcon: @Composable () -> Unit = { BackButton() },
+    quickButtonText: String = "",
+    onQuickButtonClick: (() -> Unit)? = null,
+    menuButtonLabel: String = "✦ 菜单",
+    menuActions: List<OurHomeTopMenuAction> = emptyList(),
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .height(50.dp)
+            .padding(horizontal = 8.dp),
+    ) {
+        // 左侧返回键
+        Box(
+            modifier = Modifier.align(Alignment.CenterStart),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            navigationIcon()
+        }
+
+        // 正中央：上方极小号英文副标 + 下方居中适中字号板块名（绝对单行不堆积）
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth(0.54f),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            if (enSubtitle.isNotBlank()) {
+                Text(
+                    text = enSubtitle,
+                    fontSize = 9.sp,
+                    letterSpacing = 1.8.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                letterSpacing = 0.8.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+        }
+
+        // 右侧：收拢为一个展开菜单按钮（可选附带一个迷你状态小胶囊）
+        Row(
+            modifier = Modifier.align(Alignment.CenterEnd),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            if (quickButtonText.isNotBlank() && onQuickButtonClick != null) {
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable { onQuickButtonClick() },
+                ) {
+                    Text(
+                        text = quickButtonText,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    )
+                }
+            }
+            if (menuActions.isNotEmpty()) {
+                Box {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+                        modifier = Modifier.clickable { menuExpanded = true },
+                    ) {
+                        Text(
+                            text = menuButtonLabel,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 5.dp),
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        shape = RoundedCornerShape(18.dp),
+                    ) {
+                        menuActions.forEachIndexed { idx, item ->
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text(
+                                            text = item.label,
+                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                                        )
+                                        if (item.badge.isNotBlank()) {
+                                            Spacer(Modifier.width(10.dp))
+                                            Text(
+                                                text = item.badge,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary,
+                                            )
+                                        }
+                                    }
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    item.onClick()
+                                },
+                            )
+                            if (idx < menuActions.lastIndex) {
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 // ============================================================================
 // 1. 偷看老公手机 (PartnerPhonePage)
@@ -250,15 +401,31 @@ fun PartnerPhonePage() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("偷看${partnerName}的手机") },
-                navigationIcon = { BackButton() },
-                actions = {
-                    IconButton(onClick = { wallpaperPicker.launch("image/*") }) {
-                        Icon(HugeIcons.Image02, contentDescription = "更换手机壁纸素材")
+            OurHomeCompactTopBar(
+                title = "偷看${partnerName}的手机",
+                enSubtitle = "SECRET PHONE",
+                menuActions = buildList {
+                    add(
+                        OurHomeTopMenuAction(
+                            label = if (isGenerating) "正在突击检查手机..." else "📱 突击查手机（AI同步生成）",
+                            onClick = { if (!isGenerating) inspectPhoneViaApi() },
+                        )
+                    )
+                    add(
+                        OurHomeTopMenuAction(
+                            label = "🖼️ 更换手机壁纸素材",
+                            onClick = { wallpaperPicker.launch("image/*") },
+                        )
+                    )
+                    if (selectedApp != null) {
+                        add(
+                            OurHomeTopMenuAction(
+                                label = "🏠 返回手机 16 宫格桌面",
+                                onClick = { selectedApp = null },
+                            )
+                        )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         }
     ) { innerPadding ->
@@ -266,7 +433,7 @@ fun PartnerPhonePage() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 20.dp, vertical = 10.dp),
+                .padding(horizontal = 10.dp, vertical = 4.dp),
             contentAlignment = Alignment.Center,
         ) {
             // 仿手机机身外壳容器（预留美化素材与圆角边框插槽）
@@ -1545,37 +1712,32 @@ fun PartnerDiaryPage() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("${partnerName}的日记本") },
-                navigationIcon = { BackButton() },
-                actions = {
-                    // 一键切换：绵绵原版天使雾蓝 vs 跟随全屋5色主题
-                    TextButton(
-                        onClick = {
-                            useOriginalAngelBlue = !useOriginalAngelBlue
-                            prefs.edit().putBoolean("diary_use_angel_blue", useOriginalAngelBlue).apply()
-                        }
-                    ) {
-                        Text(
-                            text = if (useOriginalAngelBlue) "🎨 天使蓝" else "🎨 随主题",
-                            color = activeAccent,
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+            OurHomeCompactTopBar(
+                title = "${partnerName}的日记本",
+                enSubtitle = "SECRET DIARY",
+                menuActions = buildList {
+                    add(
+                        OurHomeTopMenuAction(
+                            label = if (isGenerating) "✍️ 落笔中..." else "✍️ 写今日日记（AI落笔）",
+                            onClick = { if (!isGenerating) generateTodayDiary() },
                         )
-                    }
-                    if (!isCoverClosed) {
-                        TextButton(onClick = { isCoverClosed = true }) {
-                            Text("合上封面", color = activeAccent)
-                        }
-                    }
-                    FilledTonalButton(
-                        onClick = { generateTodayDiary() },
-                        enabled = !isGenerating,
-                        modifier = Modifier.padding(end = 8.dp),
-                    ) {
-                        Icon(HugeIcons.Notebook01, null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text(if (isGenerating) "落笔中..." else "写今日日记")
-                    }
+                    )
+                    add(
+                        OurHomeTopMenuAction(
+                            label = "🎨 切换日记配色",
+                            badge = if (useOriginalAngelBlue) "当前:天使蓝" else "当前:随主题",
+                            onClick = {
+                                useOriginalAngelBlue = !useOriginalAngelBlue
+                                prefs.edit().putBoolean("diary_use_angel_blue", useOriginalAngelBlue).apply()
+                            },
+                        )
+                    )
+                    add(
+                        OurHomeTopMenuAction(
+                            label = if (isCoverClosed) "📖 解开蝴蝶结翻开日记" else "📕 合上日记本封面",
+                            onClick = { isCoverClosed = !isCoverClosed },
+                        )
+                    )
                 },
             )
         }
@@ -2234,33 +2396,34 @@ fun DreamBubblesPage() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("梦境泡泡 · 吧唧徽章墙") },
-                navigationIcon = { BackButton() },
-                actions = {
-                    IconButton(onClick = { wallBgPicker.launch("image/*") }) {
-                        Icon(HugeIcons.Image02, contentDescription = "更换吧唧墙背景")
-                    }
+            OurHomeCompactTopBar(
+                title = "梦境泡泡 · 吧唧墙",
+                enSubtitle = "DREAM BUBBLES",
+                menuActions = buildList {
+                    add(
+                        OurHomeTopMenuAction(
+                            label = "➕ 吹新吧唧（开启新 IF 线）",
+                            onClick = { if (!isGenerating) showCreateDialog = true },
+                        )
+                    )
+                    add(
+                        OurHomeTopMenuAction(
+                            label = "🖼️ 更换吧唧墙背景图",
+                            onClick = { wallBgPicker.launch("image/*") },
+                        )
+                    )
                     if (wallBackgroundPath.isNotBlank()) {
-                        TextButton(
-                            onClick = {
-                                wallBackgroundPath = ""
-                                prefs.edit().remove("dream_baji_wall_bg_path").apply()
-                            }
-                        ) {
-                            Text("默认墙纸", style = MaterialTheme.typography.labelMedium)
-                        }
+                        add(
+                            OurHomeTopMenuAction(
+                                label = "🔄 恢复默认手帐墙纸",
+                                onClick = {
+                                    wallBackgroundPath = ""
+                                    prefs.edit().remove("dream_baji_wall_bg_path").apply()
+                                },
+                            )
+                        )
                     }
-                    FilledTonalButton(
-                        onClick = { showCreateDialog = true },
-                        enabled = !isGenerating,
-                        modifier = Modifier.padding(end = 8.dp),
-                    ) {
-                        Icon(HugeIcons.Add01, null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("吹新吧唧")
-                    }
-                }
+                },
             )
         }
     ) { innerPadding ->
@@ -2268,8 +2431,8 @@ fun DreamBubblesPage() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (activeBubble != null) {
                 // ================================================================

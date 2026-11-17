@@ -903,7 +903,8 @@ private fun TopBar(
         CenterAlignedTopAppBar(
             expandedHeight = 46.dp,
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = palette.secondaryContainer.copy(alpha = 0.92f)
+                containerColor = palette.secondaryContainer,
+                scrolledContainerColor = palette.secondaryContainer,
             ),
             navigationIcon = {
                 if (!bigScreen) {
@@ -1109,18 +1110,18 @@ private fun TopBar(
         androidx.compose.foundation.Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(44.dp)
+                .height(48.dp)
                 .clickable {
                     toaster.show(charmQuotes.random(), type = ToastType.Success)
                 }
         ) {
             val w = size.width
-            val cloudBaseY = 12.dp.toPx()
-            val cloudSag = 11.dp.toPx()
+            val cloudBaseY = 9.dp.toPx()
+            val cloudSag = 14.dp.toPx()
 
             val cloudFillPath = androidx.compose.ui.graphics.Path().apply {
-                moveTo(0f, 0f)
-                lineTo(w, 0f)
+                moveTo(0f, -2f)
+                lineTo(w, -2f)
                 lineTo(w, cloudBaseY)
                 val segs = 4
                 val segW = w / segs
@@ -1132,12 +1133,13 @@ private fun TopBar(
                 }
                 close()
             }
+            // 100% 实心不透底云朵主体（彻底遮挡上方壁纸与滑入云朵内部的聊天气泡，形成真实云朵波浪裁切边缘）
             drawPath(
                 path = cloudFillPath,
-                color = palette.secondaryContainer.copy(alpha = 0.92f),
+                color = palette.secondaryContainer,
             )
 
-            val ribbonOffset = 4.dp.toPx()
+            val ribbonOffset = 3.dp.toPx()
             val ribbonPath = androidx.compose.ui.graphics.Path().apply {
                 moveTo(0f, cloudBaseY + ribbonOffset)
                 val segs = 4
@@ -1156,7 +1158,7 @@ private fun TopBar(
             }
             drawPath(
                 path = ribbonPath,
-                color = palette.primary.copy(alpha = 0.65f),
+                color = palette.primary.copy(alpha = 0.82f),
                 style = androidx.compose.ui.graphics.drawscope.Stroke(
                     width = 3.5.dp.toPx(),
                     cap = androidx.compose.ui.graphics.StrokeCap.Round

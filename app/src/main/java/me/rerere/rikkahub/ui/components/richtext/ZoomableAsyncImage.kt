@@ -41,8 +41,11 @@ fun ZoomableAsyncImage(
     val context = LocalContext.current
     val placeholder = if(LocalDarkMode.current) R.drawable.placeholder_dark else R.drawable.placeholder
     val export = LocalExportContext.current
+    val resolvedData = remember(model, context) {
+        me.rerere.rikkahub.data.files.FileUtils.resolveLocalFileModel(context, model)
+    }
     val coilModel = ImageRequest.Builder(context)
-        .data(model)
+        .data(resolvedData)
         .placeholder(placeholder)
         .crossfade(false)
         .allowHardware(!export)

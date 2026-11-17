@@ -92,6 +92,14 @@ fun AssistantDetailPage(id: String) {
             item {
                 AssistantHeader(
                     assistant = assistant,
+                    onUpdateAvatar = { newAvatar ->
+                        vm.update(
+                            assistant.copy(
+                                avatar = newAvatar,
+                                useAssistantAvatar = true,
+                            )
+                        )
+                    },
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 16.dp)
                 )
             }
@@ -158,6 +166,7 @@ fun AssistantDetailPage(id: String) {
 @Composable
 private fun AssistantHeader(
     assistant: Assistant,
+    onUpdateAvatar: (( me.rerere.rikkahub.data.model.Avatar) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -168,7 +177,7 @@ private fun AssistantHeader(
         UIAvatar(
             value = assistant.avatar,
             name = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-            onUpdate = null,
+            onUpdate = onUpdateAvatar,
             modifier = Modifier
                 .size(100.dp)
                 .heroAnimation("assistant_${assistant.id}")

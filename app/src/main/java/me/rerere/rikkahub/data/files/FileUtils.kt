@@ -48,6 +48,53 @@ object FileUtils {
         return canonicalFile.relativeTo(canonicalFilesDir).path.replace(File.separatorChar, '/')
     }
 
+    /**
+     * 将跨包名备份或本地 file:// 路径解析为当前应用 filesDir/upload 下的真实可用路径或 URI。
+     * 解决从旧包名恢复备份或更换头像后，因包名路径变更导致图片空白不显示的问题。
+     */
+    fun resolveLocalUploadUrlOrPath(context: Context, raw: String?): String? {
+        if (raw.isNullOrBlank()) return raw
+        val trimmed = raw.trim()
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("content://") || trimmed.startsWith("data:")) {
+            return trimmed
+        }
+        val isFileUri = trimmed.startsWith("file:")
+        val pathPart = if (isFileUri) {
+            runCatching { Uri.parse(trimmed).path }.getOrNull() ?: trimmed.removePrefix("file://")
+        } else {
+            trimmed
+        }
+        val directFile = File(pathPart)
+        if (directFile.exists() && directFile.canRead()) {
+            return if (isFileUri) Uri.fromFile(directFile).toString() else directFile.absolutePath
+        }
+        // 提取 upload/ 下的文件名并在当前包名 filesDir/upload 中查找
+        val fileName = when {
+            pathPart.contains("/files/upload/") -> pathPart.substringAfterLast("/files/upload/")
+            pathPart.contains("/upload/") -> pathPart.substringAfterLast("/upload/")
+            else -> directFile.name
+        }.substringBefore('?').trim()
+        if (fileName.isNotEmpty()) {
+            val localUploadFile = File(File(context.filesDir, "upload"), fileName)
+            if (localUploadFile.exists() && localUploadFile.canRead()) {
+                return if (isFileUri) Uri.fromFile(localUploadFile).toString() else localUploadFile.absolutePath
+            }
+        }
+        return trimmed
+    }
+
+    fun resolveLocalFileModel(context: Context, raw: String?): Any? {
+        val resolved = resolveLocalUploadUrlOrPath(context, raw) ?: return null
+        if (resolved.startsWith("file:")) {
+            val f = runCatching { Uri.parse(resolved).path?.let { File(it) } }.getOrNull()
+            if (f != null && f.exists()) return f
+        } else if (resolved.startsWith("/")) {
+            val f = File(resolved)
+            if (f.exists()) return f
+        }
+        return resolved
+    }
+
     fun getFileNameFromUri(context: Context, uri: Uri): String? {
         return runCatching {
             var fileName: String? = null

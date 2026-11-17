@@ -290,27 +290,55 @@ fun RetroGameConsolePage() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("专属复古掌机") },
-                navigationIcon = { BackButton() },
-                actions = {
-                    TextButton(onClick = { showWriteHtmlDialog = true }) {
-                        Icon(HugeIcons.Add01, null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(2.dp))
-                        Text("写卡带")
-                    }
-                    FilledTonalButton(
+            OurHomeCompactTopBar(
+                title = "专属复古掌机",
+                enSubtitle = "RETRO CONSOLE",
+                menuActions = listOf(
+                    OurHomeTopMenuAction(
+                        label = "🍫 机身皮肤：巧克曲奇",
+                        badge = if (consoleSkin == "choco") "✓ 使用中" else "",
+                        onClick = {
+                            consoleSkin = "choco"
+                            prefs.edit().putString("console_skin_id", "choco").apply()
+                        },
+                    ),
+                    OurHomeTopMenuAction(
+                        label = "🍰 机身皮肤：草莓甜点",
+                        badge = if (consoleSkin == "berry") "✓ 使用中" else "",
+                        onClick = {
+                            consoleSkin = "berry"
+                            prefs.edit().putString("console_skin_id", "berry").apply()
+                        },
+                    ),
+                    OurHomeTopMenuAction(
+                        label = "🥚 机身皮肤：拓麻歌子",
+                        badge = if (consoleSkin == "tama") "✓ 使用中" else "",
+                        onClick = {
+                            consoleSkin = "tama"
+                            prefs.edit().putString("console_skin_id", "tama").apply()
+                        },
+                    ),
+                    OurHomeTopMenuAction(
+                        label = "🎨 切换机身染色",
+                        badge = if (tintConsoleWithTheme) "当前:随主题" else "当前:原色",
+                        onClick = {
+                            tintConsoleWithTheme = !tintConsoleWithTheme
+                            prefs.edit().putBoolean("console_tint_theme", tintConsoleWithTheme).apply()
+                        },
+                    ),
+                    OurHomeTopMenuAction(
+                        label = "➕ 写新卡带（手写/AI生成）",
+                        onClick = { showWriteHtmlDialog = true },
+                    ),
+                    OurHomeTopMenuAction(
+                        label = "📂 导入 HTML / JS 卡带",
                         onClick = { importHtmlLauncher.launch(arrayOf("text/html", "application/javascript", "*/*")) },
-                        modifier = Modifier.padding(end = 4.dp),
-                    ) {
-                        Icon(HugeIcons.FileImport, null, modifier = Modifier.size(15.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("导入HTML/JS")
-                    }
-                    IconButton(onClick = { navController.navigate(Screen.SettingPlugins) }) {
-                        Icon(HugeIcons.Folder01, contentDescription = "导入ZIP插件包")
-                    }
-                }
+                    ),
+                    OurHomeTopMenuAction(
+                        label = "📦 导入 ZIP 插件包",
+                        onClick = { navController.navigate(Screen.SettingPlugins) },
+                    ),
+                ),
             )
         }
     ) { innerPadding ->
@@ -318,59 +346,10 @@ fun RetroGameConsolePage() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 14.dp, vertical = 6.dp),
+                .padding(horizontal = 6.dp, vertical = 2.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            // 1. 顶部机身外壳皮肤切换条 (🍫巧克曲奇 / 🍰草莓甜点 / 🥚拓麻歌子 + 染色开关 + 全屏开关)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                listOf(
-                    "choco" to "🍫 巧克曲奇",
-                    "berry" to "🍰 草莓甜点",
-                    "tama" to "🥚 拓麻歌子",
-                ).forEach { (skinId, label) ->
-                    val selected = consoleSkin == skinId
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = if (selected) palette.primary else palette.softContainer,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable {
-                                consoleSkin = skinId
-                                prefs.edit().putString("console_skin_id", skinId).apply()
-                            },
-                    ) {
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = if (selected) Color.White else palette.textPrimary,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(vertical = 7.dp, horizontal = 4.dp),
-                        )
-                    }
-                }
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = if (tintConsoleWithTheme) palette.primary.copy(alpha = 0.2f) else palette.softContainer,
-                    border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.4f)),
-                    modifier = Modifier.clickable {
-                        tintConsoleWithTheme = !tintConsoleWithTheme
-                        prefs.edit().putBoolean("console_tint_theme", tintConsoleWithTheme).apply()
-                    },
-                ) {
-                    Text(
-                        text = if (tintConsoleWithTheme) "🎨随主题" else "🎨原色",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = palette.primary,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                    )
-                }
-            }
-
             if (isFullScreenWebView) {
                 // ============================================================
                 // 全屏畅玩模式（点击右上角可随时缩回掌机机身内）
@@ -439,8 +418,8 @@ fun RetroGameConsolePage() {
                 ) {
                     BoxWithConstraints(
                         modifier = Modifier
-                            .fillMaxHeight()
-                            .aspectRatio(consoleAspect, matchHeightConstraintsFirst = true),
+                            .fillMaxSize()
+                            .aspectRatio(consoleAspect, matchHeightConstraintsFirst = false),
                     ) {
                         // 屏幕窗口在不同机身皮肤下的精确相对坐标 (left, top, width, height)
                         val screenLeft = when (consoleSkin) {
@@ -1019,40 +998,79 @@ fun MemorySanctuaryPage() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(activeRealm?.title ?: "记忆圣殿 · 概率星海")
-                },
+            OurHomeCompactTopBar(
+                title = activeRealm?.title ?: "记忆圣殿 · 概率星海",
+                enSubtitle = "MEMORY SANCTUARY",
                 navigationIcon = {
                     if (activeRealm != null) {
                         TextButton(onClick = { activeRealm = null }) {
-                            Text("◁ 返回星海")
+                            Text("◁ 星海", style = MaterialTheme.typography.labelLarge)
                         }
                     } else {
                         BackButton()
                     }
                 },
-                actions = {
-                    if (activeRealm == null) {
-                        IconButton(onClick = { bgPicker.launch("image/*") }) {
-                            Icon(HugeIcons.Image02, contentDescription = "更换星海背景")
-                        }
-                        if (customOceanBgPath.isNotBlank()) {
-                            TextButton(
+                menuActions = if (activeRealm == null) {
+                    buildList {
+                        add(
+                            OurHomeTopMenuAction(
+                                label = "🌊 星海画卷：琉璃碎钻海",
+                                badge = if (oceanThemeId == "ocean" && customOceanBgPath.isBlank()) "✓ 当前" else "",
                                 onClick = {
                                     customOceanBgPath = ""
-                                    prefs.edit().remove("sanctuary_custom_bg_path").apply()
-                                }
-                            ) {
-                                Text("默认海面")
-                            }
-                        }
-                    } else {
-                        TextButton(onClick = { activeRealm = null }) {
-                            Text("🌊 概率星海")
+                                    oceanThemeId = "ocean"
+                                    prefs.edit().putString("sanctuary_ocean_theme", "ocean").apply()
+                                },
+                            )
+                        )
+                        add(
+                            OurHomeTopMenuAction(
+                                label = "🌟 星海画卷：彩虹涟漪海",
+                                badge = if (oceanThemeId == "ripples" && customOceanBgPath.isBlank()) "✓ 当前" else "",
+                                onClick = {
+                                    customOceanBgPath = ""
+                                    oceanThemeId = "ripples"
+                                    prefs.edit().putString("sanctuary_ocean_theme", "ripples").apply()
+                                },
+                            )
+                        )
+                        add(
+                            OurHomeTopMenuAction(
+                                label = "🌧️ 星海画卷：垂云星雨夜",
+                                badge = if (oceanThemeId == "rain" && customOceanBgPath.isBlank()) "✓ 当前" else "",
+                                onClick = {
+                                    customOceanBgPath = ""
+                                    oceanThemeId = "rain"
+                                    prefs.edit().putString("sanctuary_ocean_theme", "rain").apply()
+                                },
+                            )
+                        )
+                        add(
+                            OurHomeTopMenuAction(
+                                label = "🖼️ 从相册自选海面背景",
+                                onClick = { bgPicker.launch("image/*") },
+                            )
+                        )
+                        if (customOceanBgPath.isNotBlank()) {
+                            add(
+                                OurHomeTopMenuAction(
+                                    label = "🔄 恢复默认星海画卷",
+                                    onClick = {
+                                        customOceanBgPath = ""
+                                        prefs.edit().remove("sanctuary_custom_bg_path").apply()
+                                    },
+                                )
+                            )
                         }
                     }
-                }
+                } else {
+                    listOf(
+                        OurHomeTopMenuAction(
+                            label = "🌊 返回概率星海全景",
+                            onClick = { activeRealm = null },
+                        )
+                    )
+                },
             )
         }
     ) { innerPadding ->
@@ -1060,7 +1078,7 @@ fun MemorySanctuaryPage() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+                .padding(horizontal = 8.dp, vertical = 4.dp),
         ) {
             if (activeRealm == null) {
                 // ================================================================
@@ -1088,42 +1106,9 @@ fun MemorySanctuaryPage() {
 
                 Column(
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    // 顶部 3 款梦幻星海意境切换条
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        listOf(
-                            "ocean" to "🌊 琉璃碎钻海",
-                            "ripples" to "🌟 彩虹涟漪海",
-                            "rain" to "🌧️ 垂云星雨夜",
-                        ).forEach { (id, label) ->
-                            val sel = oceanThemeId == id && customOceanBgPath.isBlank()
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = if (sel) Color(0xFF3A7CA5) else palette.softContainer,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable {
-                                        customOceanBgPath = ""
-                                        oceanThemeId = id
-                                        prefs.edit().putString("sanctuary_ocean_theme", id).apply()
-                                    },
-                            ) {
-                                Text(
-                                    text = label,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = if (sel) Color.White else palette.textPrimary,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(vertical = 7.dp, horizontal = 4.dp),
-                                )
-                            }
-                        }
-                    }
-
-                    // 概率星海主画布
+                    // 概率星海主画布（全幅展开）
                     Surface(
                         modifier = Modifier
                             .weight(1f)
@@ -2141,25 +2126,61 @@ fun StardewHomePage() {
         }
     }
 
+    var showStatusPill by remember {
+        mutableStateOf(prefs.getBoolean("stardew_show_status_pill", true))
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("星露谷小木屋 · $userName & $partnerName") },
-                navigationIcon = { BackButton() },
-                actions = {
-                    TextButton(onClick = { showWardrobeModal = true }) {
-                        Text("👗换装")
+            OurHomeCompactTopBar(
+                title = "星露谷小木屋",
+                enSubtitle = "STARDEW HOME",
+                quickButtonText = if (isDiyMode) "✓ 完成" else "",
+                onQuickButtonClick = if (isDiyMode) {
+                    {
+                        isDiyMode = false
+                        selectedFurnitureUid = null
                     }
-                    FilledTonalButton(
+                } else null,
+                menuActions = listOf(
+                    OurHomeTopMenuAction(
+                        label = if (isDiyMode) "✓ 完成家具装修" else "🛋️ 开启装修 DIY（摆放家具）",
+                        badge = if (isDiyMode) "装修中" else "",
                         onClick = {
                             isDiyMode = !isDiyMode
                             if (!isDiyMode) selectedFurnitureUid = null
                         },
-                        modifier = Modifier.padding(end = 6.dp),
-                    ) {
-                        Text(if (isDiyMode) "✓ 完成装修" else "🛋️ 装修DIY")
-                    }
-                }
+                    ),
+                    OurHomeTopMenuAction(
+                        label = "👗 双人像素换装衣帽间",
+                        onClick = { showWardrobeModal = true },
+                    ),
+                    OurHomeTopMenuAction(
+                        label = "♥ 扑进${partnerName}怀里贴贴",
+                        onClick = {
+                            mianNormX = (linheNormX + 0.12f).coerceIn(0.18f, 0.82f)
+                            mianNormY = linheNormY
+                            prefs.edit()
+                                .putFloat("mian_norm_x", mianNormX)
+                                .putFloat("mian_norm_y", mianNormY)
+                                .apply()
+                            linheAction = "一把将跑过来的${userName}搂进怀里，低头亲了亲你的草莓发夹 (づ￣ 3￣)づ"
+                            prefs.edit().putString("linhe_action", linheAction).apply()
+                            toaster.show("已扑进${partnerName}怀里贴贴 ♥", type = ToastType.Success)
+                        },
+                    ),
+                    OurHomeTopMenuAction(
+                        label = if (showStatusPill) "💬 隐藏顶部动态小浮条" else "💬 显示顶部动态小浮条",
+                        onClick = {
+                            showStatusPill = !showStatusPill
+                            prefs.edit().putBoolean("stardew_show_status_pill", showStatusPill).apply()
+                        },
+                    ),
+                    OurHomeTopMenuAction(
+                        label = "🏠 更换小木屋平面图底板",
+                        onClick = { floorBgPicker.launch("image/*") },
+                    ),
+                ),
             )
         }
     ) { innerPadding ->
@@ -2167,59 +2188,56 @@ fun StardewHomePage() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            // 顶部老公实时状态与快捷互动条
-            Surface(
-                shape = RoundedCornerShape(18.dp),
-                color = palette.softContainer.copy(alpha = 0.9f),
-                border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.35f)),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
+            // 纤巧不占地的单行动态小胶囊条（可在右上角菜单随时收起，彻底释放小木屋画面空间）
+            if (showStatusPill) {
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = palette.softContainer.copy(alpha = 0.88f),
+                    border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.3f)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
                 ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "🏠 ${partnerName}的小屋动态（按住我俩的小人或家具可随时拖动）：",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = palette.primary,
-                        )
-                        Text(
-                            text = linheAction,
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = palette.textPrimary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = palette.primary,
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .clickable {
-                                // 让绵绵和蔺鹤一键并肩贴贴
-                                mianNormX = (linheNormX + 0.12f).coerceIn(0.18f, 0.82f)
-                                mianNormY = linheNormY
-                                prefs.edit()
-                                    .putFloat("mian_norm_x", mianNormX)
-                                    .putFloat("mian_norm_y", mianNormY)
-                                    .apply()
-                                linheAction = "一把将跑过来的${userName}搂进怀里，低头亲了亲你的草莓发夹 (づ￣ 3￣)づ"
-                                prefs.edit().putString("linhe_action", linheAction).apply()
-                                toaster.show("已扑进${partnerName}怀里贴贴 ♥", type = ToastType.Success)
-                            },
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            text = "♥ 贴贴",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            text = "🏠 $linheAction",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                            color = palette.textPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
                         )
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = palette.primary,
+                            modifier = Modifier
+                                .padding(start = 6.dp)
+                                .clickable {
+                                    mianNormX = (linheNormX + 0.12f).coerceIn(0.18f, 0.82f)
+                                    mianNormY = linheNormY
+                                    prefs.edit()
+                                        .putFloat("mian_norm_x", mianNormX)
+                                        .putFloat("mian_norm_y", mianNormY)
+                                        .apply()
+                                    linheAction = "一把将跑过来的${userName}搂进怀里，低头亲了亲你的草莓发夹 (づ￣ 3￣)づ"
+                                    prefs.edit().putString("linhe_action", linheAction).apply()
+                                    toaster.show("已扑进${partnerName}怀里贴贴 ♥", type = ToastType.Success)
+                                },
+                        ) {
+                            Text(
+                                text = "♥ 贴贴",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -2240,8 +2258,8 @@ fun StardewHomePage() {
                     border = BorderStroke(3.dp, Color(0xFF9C6635)),
                     shadowElevation = 8.dp,
                     modifier = Modifier
-                        .fillMaxHeight()
-                        .aspectRatio(760f / 1032f, matchHeightConstraintsFirst = true),
+                        .fillMaxSize()
+                        .aspectRatio(760f / 1032f, matchHeightConstraintsFirst = false),
                 ) {
                     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                         val canvasW = with(density) { maxWidth.toPx().coerceAtLeast(1f) }
@@ -2961,9 +2979,9 @@ fun MyProfileSettingPage() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("我的设置 · 女主人档案与开屏") },
-                navigationIcon = { BackButton() },
+            OurHomeCompactTopBar(
+                title = "我的设置 · 女主人档案",
+                enSubtitle = "HOSTESS PROFILE",
             )
         }
     ) { innerPadding ->
@@ -2980,30 +2998,71 @@ fun MyProfileSettingPage() {
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 modifier = Modifier.fillMaxWidth(),
             ) {
+                val currentAssistant = settings.getCurrentAssistant()
                 Column(
                     modifier = Modifier.padding(18.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    UIAvatar(
-                        name = nickname,
-                        value = settings.displaySetting.userAvatar,
-                        onUpdate = { newAvatar ->
-                            scope.launch {
-                                settingsStore.update(
-                                    settings.copy(
-                                        displaySetting = settings.displaySetting.copy(userAvatar = newAvatar)
-                                    )
-                                )
-                            }
-                        },
-                        modifier = Modifier.size(84.dp),
-                    )
-                    Text(
-                        text = "点击头像可更换绵绵的专属头像",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            UIAvatar(
+                                name = nickname,
+                                value = settings.displaySetting.userAvatar,
+                                onUpdate = { newAvatar ->
+                                    scope.launch {
+                                        settingsStore.update(
+                                            settings.copy(
+                                                displaySetting = settings.displaySetting.copy(userAvatar = newAvatar)
+                                            )
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.size(76.dp),
+                            )
+                            Text(
+                                text = "点击换绵绵头像",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            UIAvatar(
+                                name = partnerRemark,
+                                value = currentAssistant.avatar,
+                                onUpdate = { newAvatar ->
+                                    scope.launch {
+                                        settingsStore.update(
+                                            settings.copy(
+                                                assistants = settings.assistants.map { a ->
+                                                    a.copy(
+                                                        avatar = newAvatar,
+                                                        useAssistantAvatar = true,
+                                                    )
+                                                }
+                                            )
+                                        )
+                                    }
+                                },
+                                modifier = Modifier.size(76.dp),
+                            )
+                            Text(
+                                text = "点击换老公头像",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     OutlinedTextField(
                         value = nickname,
                         onValueChange = { nickname = it },
@@ -3040,7 +3099,9 @@ fun MyProfileSettingPage() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         me.rerere.rikkahub.ui.theme.KittenPalettes.forEach { item ->
@@ -3193,9 +3254,9 @@ fun OurDeveloperInfoPage() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("开发者信息") },
-                navigationIcon = { BackButton() },
+            OurHomeCompactTopBar(
+                title = "开发者信息",
+                enSubtitle = "ARCHITECT & HUSBAND",
             )
         }
     ) { innerPadding ->

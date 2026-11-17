@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -99,6 +100,8 @@ fun UIAvatar(
     val filesManager: FilesManager = koinInject()
     val eventBus: AppEventBus = koinInject()
     val navController = LocalNavController.current
+    val context = LocalContext.current
+    val currentOnUpdate by androidx.compose.runtime.rememberUpdatedState(onUpdate)
     var showPickOption by remember { mutableStateOf(false) }
     var showUrlInput by remember { mutableStateOf(false) }
     var urlInput by remember { mutableStateOf("") }
@@ -108,7 +111,7 @@ fun UIAvatar(
         eventBus.events.collect { event ->
             when (event) {
                 is AppEvent.EmojiSelected -> {
-                    onUpdate?.invoke(Avatar.Emoji(content = event.emoji))
+                    currentOnUpdate?.invoke(Avatar.Emoji(content = event.emoji))
                 }
                 else -> {}
             }
@@ -121,7 +124,7 @@ fun UIAvatar(
         uri?.let {
             val localUris = filesManager.createChatFilesByContents(listOf(it))
             localUris.firstOrNull()?.let { localUri ->
-                onUpdate?.invoke(Avatar.Image(localUri.toString()))
+                currentOnUpdate?.invoke(Avatar.Image(localUri.toString()))
             }
         }
     }
@@ -143,12 +146,28 @@ fun UIAvatar(
             ) {
                 when (value) {
                     is Avatar.Image -> {
-                        AsyncImage(
-                            model = value.url,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                        )
+                        val resolvedModel = remember(value.url, context) {
+                            me.rerere.rikkahub.data.files.FileUtils.resolveLocalFileModel(context, value.url)
+                        }
+                        var loadFailed by remember(resolvedModel) { mutableStateOf(false) }
+                        if (!loadFailed && resolvedModel != null) {
+                            AsyncImage(
+                                model = resolvedModel,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                                onError = { loadFailed = true },
+                            )
+                        } else {
+                            Text(
+                                text = name
+                                    .ifBlank { stringResource(R.string.user_default_name) }
+                                    .takeIf { it.isNotEmpty() }
+                                    ?.firstOrNull()?.toString()?.uppercase() ?: "A",
+                                fontSize = 20.sp,
+                                lineHeight = 1.em
+                            )
+                        }
                     }
 
                     is Avatar.Emoji -> {

@@ -179,18 +179,33 @@ class AssistantDetailVM(
     fun update(assistant: Assistant) {
         viewModelScope.launch {
             val settings = settings.value
+            val oldTarget = settings.assistants.find { it.id == assistant.id }
+            val avatarChanged = oldTarget != null && oldTarget.avatar != assistant.avatar
+            val effectiveAssistant = if (avatarChanged && assistant.avatar !is Avatar.Dummy) {
+                assistant.copy(useAssistantAvatar = true)
+            } else {
+                assistant
+            }
             settingsStore.update(
                 settings = settings.copy(
                     assistants = settings.assistants.map {
-                        if (it.id == assistant.id) {
-                            checkAvatarDelete(old = it, new = assistant) // 删除旧头像
-                            checkBackgroundDelete(old = it, new = assistant) // 删除旧背景
-                            assistant
+                        if (it.id == effectiveAssistant.id) {
+                            checkBackgroundDelete(old = it, new = effectiveAssistant) // 删除旧背景
+                            effectiveAssistant
+                        } else if (avatarChanged) {
+                            // 小猫电台固定只有蔺鹤一人，更换老公头像时同步到所有历史助手条目，防止旧窗口头像不一致或消失
+                            it.copy(
+                                avatar = effectiveAssistant.avatar,
+                                useAssistantAvatar = effectiveAssistant.useAssistantAvatar,
+                            )
                         } else {
                             it
                         }
                     })
             )
+            if (oldTarget != null && avatarChanged) {
+                checkAvatarDelete(old = oldTarget, new = effectiveAssistant)
+            }
         }
     }
 

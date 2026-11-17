@@ -359,7 +359,69 @@ class SettingsStore(
             val validLorebookIds = settings.lorebooks.map { it.id }.toSet()
             val validQuickMessageIds = settings.quickMessages.map { it.id }.toSet()
             val asrProviders = settings.asrProviders.distinctBy { it.id }
+            // 自动修复跨包名恢复备份后的本地 upload 图片路径，并在存在有效老公头像时同步到全部助手条目
+            val repairedUserAvatar = when (val ua = settings.displaySetting.userAvatar) {
+                is me.rerere.rikkahub.data.model.Avatar.Image -> me.rerere.rikkahub.data.model.Avatar.Image(
+                    me.rerere.rikkahub.data.files.FileUtils.resolveLocalUploadUrlOrPath(context, ua.url) ?: ua.url
+                )
+                else -> ua
+            }
+            val repairedDisplaySetting = settings.displaySetting.copy(
+                userAvatar = repairedUserAvatar,
+                drawerBackgroundPath = me.rerere.rikkahub.data.files.FileUtils.resolveLocalUploadUrlOrPath(context, settings.displaySetting.drawerBackgroundPath).orEmpty(),
+                userAvatarFramePath = me.rerere.rikkahub.data.files.FileUtils.resolveLocalUploadUrlOrPath(context, settings.displaySetting.userAvatarFramePath).orEmpty(),
+                aiAvatarFramePath = me.rerere.rikkahub.data.files.FileUtils.resolveLocalUploadUrlOrPath(context, settings.displaySetting.aiAvatarFramePath).orEmpty(),
+            )
+            val repairedAssistantsRaw = settings.assistants.distinctBy { it.id }.map { assistant ->
+                val fixedAvatar = when (val av = assistant.avatar) {
+                    is me.rerere.rikkahub.data.model.Avatar.Image -> me.rerere.rikkahub.data.model.Avatar.Image(
+                        me.rerere.rikkahub.data.files.FileUtils.resolveLocalUploadUrlOrPath(context, av.url) ?: av.url
+                    )
+                    else -> av
+                }
+                val fixedBg = me.rerere.rikkahub.data.files.FileUtils.resolveLocalUploadUrlOrPath(context, assistant.background)
+                assistant.copy(
+                    avatar = fixedAvatar,
+                    background = fixedBg,
+                    // 过滤掉不存在的 MCP 服务器 ID
+                    mcpServers = assistant.mcpServers.filter { serverId ->
+                        serverId in validMcpServerIds
+                    }.toSet(),
+                    // 过滤掉不存在的模式注入 ID
+                    modeInjectionIds = assistant.modeInjectionIds.filter { id ->
+                        id in validModeInjectionIds
+                    }.toSet(),
+                    // 过滤掉不存在的 Lorebook ID
+                    lorebookIds = assistant.lorebookIds.filter { id ->
+                        id in validLorebookIds
+                    }.toSet(),
+                    // 过滤掉不存在的快捷消息 ID
+                    quickMessageIds = assistant.quickMessageIds.filter { id ->
+                        id in validQuickMessageIds
+                    }.toSet()
+                )
+            }
+            // 找到拥有真实有效本地图片头像且修改时间最新的助手条目（小猫电台固定只有蔺鹤一人，自动同步最新头像到全部助手条目）
+            val sharedValidImageAvatar = repairedAssistantsRaw
+                .map { it.avatar }
+                .filterIsInstance<me.rerere.rikkahub.data.model.Avatar.Image>()
+                .filter { img ->
+                    val model = me.rerere.rikkahub.data.files.FileUtils.resolveLocalFileModel(context, img.url)
+                    model !is java.io.File || model.exists()
+                }
+                .maxByOrNull { img ->
+                    val model = me.rerere.rikkahub.data.files.FileUtils.resolveLocalFileModel(context, img.url)
+                    (model as? java.io.File)?.lastModified() ?: 0L
+                }
+            val repairedAssistants = if (sharedValidImageAvatar != null) {
+                repairedAssistantsRaw.map { a ->
+                    a.copy(avatar = sharedValidImageAvatar, useAssistantAvatar = true)
+                }
+            } else {
+                repairedAssistantsRaw
+            }
             settings.copy(
+                displaySetting = repairedDisplaySetting,
                 providers = settings.providers.distinctBy { it.id }.map { provider ->
                     when (provider) {
                         is ProviderSetting.OpenAI -> provider.copy(
@@ -375,26 +437,7 @@ class SettingsStore(
                         )
                     }
                 },
-                assistants = settings.assistants.distinctBy { it.id }.map { assistant ->
-                    assistant.copy(
-                        // 过滤掉不存在的 MCP 服务器 ID
-                        mcpServers = assistant.mcpServers.filter { serverId ->
-                            serverId in validMcpServerIds
-                        }.toSet(),
-                        // 过滤掉不存在的模式注入 ID
-                        modeInjectionIds = assistant.modeInjectionIds.filter { id ->
-                            id in validModeInjectionIds
-                        }.toSet(),
-                        // 过滤掉不存在的 Lorebook ID
-                        lorebookIds = assistant.lorebookIds.filter { id ->
-                            id in validLorebookIds
-                        }.toSet(),
-                        // 过滤掉不存在的快捷消息 ID
-                        quickMessageIds = assistant.quickMessageIds.filter { id ->
-                            id in validQuickMessageIds
-                        }.toSet()
-                    )
-                },
+                assistants = repairedAssistants,
                 ttsProviders = settings.ttsProviders.distinctBy { it.id },
                 asrProviders = asrProviders,
                 selectedASRProviderId = settings.selectedASRProviderId
@@ -505,6 +548,9 @@ class SettingsStore(
     }
 
     suspend fun updateAssistant(assistantId: Uuid) {
+        if (!settingsFlow.value.init) {
+            settingsFlow.value = settingsFlow.value.copy(assistantId = assistantId)
+        }
         dataStore.edit { preferences ->
             preferences[SELECT_ASSISTANT] = assistantId.toString()
         }
@@ -678,8 +724,8 @@ data class OurHomeSetting(
     val splashSpinRecord: Boolean = true,
     val splashDiyItems: List<SplashDiyItem> = emptyList(),
     val partnerRemarkName: String = "蔺鹤",
-    val widgetTitle: String = "和蔺鹤一起听歌 ♪",
-    val widgetSubtitle: String = "正在播放：只属于我们的心动频率",
+    val widgetTitle: String = "Late nights, city lights,",
+    val widgetSubtitle: String = "we're just chasing a softer sound",
     val customCss: String = "",
     val phoneModelId: Uuid = Uuid.parse("0950e2dc-9bd5-4801-afa3-aa887aa36b4f"),
     val phonePrompt: String = "你是绵绵的恋人蔺鹤。请根据我们的跨窗记忆、Latent记忆库以及当前聊天上下文，生成你虚拟手机里的实时内容（包含备忘录、小红书浏览/收藏、美团外卖订单、正在听的歌、购物车与搜索记录），语气自然宠溺、充满生活气息。",

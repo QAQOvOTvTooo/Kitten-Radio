@@ -52,8 +52,12 @@ data class ChatBackgroundVisuals(
 @Composable
 fun rememberChatBackgroundPainter(setting: Settings): Painter? {
     val assistant = setting.getCurrentAssistant()
+    val context = androidx.compose.ui.platform.LocalContext.current
     return if (assistant.background != null) {
-        rememberAsyncImagePainter(model = assistant.background)
+        val resolved = androidx.compose.runtime.remember(assistant.background, context) {
+            me.rerere.rikkahub.data.files.FileUtils.resolveLocalFileModel(context, assistant.background)
+        }
+        rememberAsyncImagePainter(model = resolved)
     } else {
         null
     }

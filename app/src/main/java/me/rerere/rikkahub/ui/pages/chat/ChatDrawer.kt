@@ -102,9 +102,11 @@ import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Notebook01
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Rocket01
+import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.hugeicons.stroke.Sparkles
+import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
@@ -246,7 +248,7 @@ fun ChatDrawerContent(
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                // 1. 顶端留出空位：图3同款恶魔小翅膀耳机双人播放器组件（左下角绵绵头像、右下角老公头像，支持5色染色）
+                // 1. 顶端留出空位：图3同款恶魔小翅膀耳机双人播放器组件（左下角老公头像、右下角绵绵头像，支持5色染色与点击实时改字）
                 CoupleMusicWidgetCard(
                     userName = userName,
                     partnerName = partnerName,
@@ -259,63 +261,93 @@ fun ChatDrawerContent(
                     onClickEdit = { showEditWidgetDialog = true },
                 )
 
-                // 2. 中部功能面板（可滚动区域）
+                // 2. 中部电台歌单面板（可滚动区域）
+                val assetColorFilter = me.rerere.rikkahub.ui.theme.rememberKittenAssetColorFilter(
+                    paletteId = settings.ourHomeSetting.kittenPaletteId,
+                    enabled = settings.ourHomeSetting.enableAssetTint,
+                )
+                val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(settings.ourHomeSetting.kittenPaletteId)
+
                 Column(
                     modifier = Modifier
                         .weight(1f)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    // 2.1 名为“窗口”的折叠栏
-                    DrawerItemSurface(
-                        onClick = { windowsExpanded = !windowsExpanded },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                        materialMode = settings.displaySetting.materialMode,
+                    // 2.1 图1顶部同款「正在播放（Now Playing · 窗口折叠栏）」播放器卡
+                    androidx.compose.foundation.layout.BoxWithConstraints(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(850f / 351f)
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable { windowsExpanded = !windowsExpanded },
                     ) {
-                        Row(
+                        val cw = maxWidth
+                        val ch = maxHeight
+                        Image(
+                            painter = androidx.compose.ui.res.painterResource(id = R.drawable.kitten_drawer_nowplaying_card),
+                            contentDescription = "正在播放窗口",
+                            colorFilter = assetColorFilter,
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                        // 中间原本 Night Drive / Luvbyte 的位置，动态显示「窗口」与当前窗口标题
+                        Column(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                .align(Alignment.TopStart)
+                                .offset(x = cw * 0.31f, y = ch * 0.17f)
+                                .width(cw * 0.42f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
-                            Icon(
-                                imageVector = HugeIcons.Message01,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp),
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
                                 Text(
                                     text = "窗口",
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                                )
-                                Text(
-                                    text = current.title.ifBlank { "当前新窗口" },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
+                                    color = Color(0xFF2F2D3C),
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
                                 )
-                            }
-                            IconButton(
-                                onClick = { navigateToChatPage(navController) },
-                                modifier = Modifier.size(28.dp),
-                            ) {
                                 Icon(
-                                    imageVector = HugeIcons.Add01,
-                                    contentDescription = "新建窗口",
-                                    modifier = Modifier.size(18.dp),
+                                    imageVector = if (windowsExpanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2F2D3C),
+                                    modifier = Modifier.size(14.dp),
                                 )
                             }
-                            Icon(
-                                imageVector = if (windowsExpanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
+                            Text(
+                                text = current.title.ifBlank { "当前新窗口" },
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = Color(0xFF6E6878),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
+                        }
+                        // 右侧暂停键处叠放「+ 新建窗口」点击热区，右侧列表图标处点击展开/收起窗口列表
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = -cw * 0.17f, y = ch * 0.18f)
+                                .size(cw * 0.14f)
+                                .clip(CircleShape)
+                                .clickable { navigateToChatPage(navController) },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = Color.White.copy(alpha = 0.72f),
+                                modifier = Modifier.size(22.dp),
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = HugeIcons.Add01,
+                                        contentDescription = "新建窗口",
+                                        tint = Color(0xFF2F2D3C),
+                                        modifier = Modifier.size(14.dp),
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -384,104 +416,126 @@ fun ChatDrawerContent(
                         }
                     }
 
-                    // 2.2 偷看老公手机
-                    OurHomeDrawerFeatureButton(
-                        icon = HugeIcons.SmartPhone01,
-                        title = "偷看老公手机",
-                        subtitle = "小红书 · 美团 · 备忘录 · 歌单 · 查手机",
-                        drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                        materialMode = settings.displaySetting.materialMode,
+                    // 分割线 1：窗口正下方的粉色爱心进度条分界线 (00:45 ───♥─── 02:30)
+                    OurHomePlaylistDivider(
+                        resId = R.drawable.kitten_drawer_divider_heart,
+                        colorFilter = assetColorFilter,
+                    )
+
+                    // Track 01 · Secret Phone（偷看老公手机）
+                    OurHomePlaylistTrackItem(
+                        cdResId = R.drawable.kitten_drawer_cd_01,
+                        title = "Track 01 · Secret Phone",
+                        textColor = palette.textPrimary,
+                        frameColorFilter = assetColorFilter,
                         onClick = { navController.navigate(Screen.PartnerPhone) },
                     )
 
-                    // 2.3 日记本
-                    OurHomeDrawerFeatureButton(
-                        icon = HugeIcons.Notebook01,
-                        title = "日记本",
-                        subtitle = "睡前偷看老公今天写下的私密心事",
-                        drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                        materialMode = settings.displaySetting.materialMode,
+                    // Track 02 · 午夜落笔（日记本）
+                    OurHomePlaylistTrackItem(
+                        cdResId = R.drawable.kitten_drawer_cd_02,
+                        title = "Track 02 · 午夜落笔",
+                        textColor = palette.textPrimary,
+                        frameColorFilter = assetColorFilter,
                         onClick = { navController.navigate(Screen.PartnerDiary) },
                     )
 
-                    // 2.4 梦境
-                    OurHomeDrawerFeatureButton(
-                        icon = HugeIcons.Sparkles,
-                        title = "梦境",
-                        subtitle = "平行宇宙 IF 线 · 奇思妙想梦境泡泡",
-                        drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                        materialMode = settings.displaySetting.materialMode,
+                    // 分割线 2：星星进度条分界线 (01:10 ───★─── 03:20)
+                    OurHomePlaylistDivider(
+                        resId = R.drawable.kitten_drawer_divider_star,
+                        colorFilter = assetColorFilter,
+                    )
+
+                    // Track 03 · 猫与白日梦（梦境泡泡）
+                    OurHomePlaylistTrackItem(
+                        cdResId = R.drawable.kitten_drawer_cd_03,
+                        title = "Track 03 · 猫与白日梦",
+                        textColor = palette.textPrimary,
+                        frameColorFilter = assetColorFilter,
                         onClick = { navController.navigate(Screen.DreamBubbles) },
                     )
 
-                    // 2.5 游戏
-                    OurHomeDrawerFeatureButton(
-                        icon = HugeIcons.Rocket01,
-                        title = "游戏",
-                        subtitle = "专属复古掌机 · 支持导入 HTML/JS 插件",
-                        drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                        materialMode = settings.displaySetting.materialMode,
+                    // Track 04 · 8-Bit Love（专属复古掌机）
+                    OurHomePlaylistTrackItem(
+                        cdResId = R.drawable.kitten_drawer_cd_04,
+                        title = "Track 04 · 8-Bit Love",
+                        textColor = palette.textPrimary,
+                        frameColorFilter = assetColorFilter,
                         onClick = { navController.navigate(Screen.RetroGameConsole) },
                     )
 
-                    // 2.6 记忆
-                    OurHomeDrawerFeatureButton(
-                        icon = HugeIcons.Brain01,
-                        title = "记忆",
-                        subtitle = "跨窗 Memory · Latent 相册 / 便签 / Persona",
-                        drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                        materialMode = settings.displaySetting.materialMode,
+                    // 分割线 3：小骷髅虚线进度条分界线 (00:30 - - ☠ - - 04:00)
+                    OurHomePlaylistDivider(
+                        resId = R.drawable.kitten_drawer_divider_skull,
+                        colorFilter = assetColorFilter,
+                    )
+
+                    // Track 05 · 概率海洋的回响（记忆圣殿）
+                    OurHomePlaylistTrackItem(
+                        cdResId = R.drawable.kitten_drawer_cd_05,
+                        title = "Track 05 · 概率海洋的回响",
+                        textColor = palette.textPrimary,
+                        frameColorFilter = assetColorFilter,
                         onClick = { navController.navigate(Screen.MemorySanctuary) },
                     )
 
-                    // 2.7 家
-                    OurHomeDrawerFeatureButton(
-                        icon = HugeIcons.InLove,
-                        title = "家",
-                        subtitle = "2D 星露谷小家 · 家具装修与老公自主行动",
-                        drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                        materialMode = settings.displaySetting.materialMode,
+                    // Track 06 · Our House（2D 星露谷小家）
+                    OurHomePlaylistTrackItem(
+                        cdResId = R.drawable.kitten_drawer_cd_06,
+                        title = "Track 06 · Our House",
+                        textColor = palette.textPrimary,
+                        frameColorFilter = assetColorFilter,
                         onClick = { navController.navigate(Screen.StardewHome) },
                     )
                 }
 
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                // 分割线 4：歌单底部与三个纯图标按钮之间的四芒星进度条分界线 (02:15 ───✦─── 03:15)
+                OurHomePlaylistDivider(
+                    resId = R.drawable.kitten_drawer_divider_sparkle,
+                    colorFilter = assetColorFilter,
                 )
 
-                // 3. 最底下是设置按钮
-                DrawerItemSurface(
-                    onClick = { navController.navigate(Screen.Setting) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.75f),
-                    drawerItemAlpha = settings.displaySetting.drawerItemAlpha,
-                    materialMode = settings.displaySetting.materialMode,
+                // 3. 最底下并排放置三个纯图标按钮：设置、搜索聊天、聊天历史（不带文字，清爽美观）
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    IconButton(
+                        onClick = { navController.navigate(Screen.Setting) },
+                        modifier = Modifier.size(44.dp),
                     ) {
                         Icon(
                             imageVector = HugeIcons.Settings03,
                             contentDescription = "设置",
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(22.dp),
                         )
-                        Text(
-                            text = "设置",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.weight(1f),
-                        )
+                    }
+
+                    IconButton(
+                        onClick = { navController.navigate(Screen.MessageSearch) },
+                        modifier = Modifier.size(44.dp),
+                    ) {
                         Icon(
-                            imageVector = HugeIcons.ArrowRight01,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                            modifier = Modifier.size(16.dp),
+                            imageVector = HugeIcons.Search01,
+                            contentDescription = "搜索聊天",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(22.dp),
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { navController.navigate(Screen.History) },
+                        modifier = Modifier.size(44.dp),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.TransactionHistory,
+                            contentDescription = "聊天历史",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(22.dp),
                         )
                     }
                 }
@@ -801,66 +855,46 @@ private fun CoupleMusicWidgetCard(
             modifier = Modifier.fillMaxSize(),
         )
 
-        // 2. 如果绵绵自定义了听歌文案（非默认初始值），则在中部覆盖显示自定义浪漫文案
-        val hasCustomText = widgetTitle.isNotBlank() && widgetTitle != "和蔺鹤一起听歌 ♪"
-        if (hasCustomText) {
-            Surface(
-                color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.94f),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .offset(y = cardH * 0.08f)
-                    .fillMaxWidth(0.84f),
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    Text(
-                        text = widgetTitle,
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = palette.textPrimary,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (widgetSubtitle.isNotBlank()) {
-                        Text(
-                            text = widgetSubtitle,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = palette.textSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
+        // 2. 中部文字区域（原图英文已无痕擦除，直接在此处实时渲染绵绵自定义的标题与正在听的歌）
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .offset(y = cardH * 0.115f)
+                .fillMaxWidth(0.82f),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            if (widgetTitle.isNotBlank()) {
+                Text(
+                    text = widgetTitle,
+                    style = MaterialTheme.typography.titleSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                    ),
+                    color = palette.textPrimary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (widgetSubtitle.isNotBlank()) {
+                Text(
+                    text = widgetSubtitle,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                    color = palette.textSecondary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
 
-        // 3. 左下角（原心心处）：放大版绵绵头像
+        // 3. 左下角（左边）：放大版老公头像
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .padding(start = cardW * 0.06f, bottom = cardH * 0.055f)
-                .size(avatarSize)
-                .border(2.5.dp, palette.primary, CircleShape)
-                .padding(2.dp)
-                .clip(CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            UIAvatar(
-                name = userName,
-                value = userAvatar,
-                onUpdate = null,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-
-        // 4. 右下角（原骷髅处）：放大版老公头像
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = cardW * 0.06f, bottom = cardH * 0.055f)
                 .size(avatarSize)
                 .border(2.5.dp, palette.secondary, CircleShape)
                 .padding(2.dp)
@@ -874,67 +908,92 @@ private fun CoupleMusicWidgetCard(
                 modifier = Modifier.fillMaxSize(),
             )
         }
+
+        // 4. 右下角（右边）：放大版绵绵头像
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = cardW * 0.06f, bottom = cardH * 0.055f)
+                .size(avatarSize)
+                .border(2.5.dp, palette.primary, CircleShape)
+                .padding(2.dp)
+                .clip(CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            UIAvatar(
+                name = userName,
+                value = userAvatar,
+                onUpdate = null,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
     }
 }
 
 @Composable
-private fun OurHomeDrawerFeatureButton(
-    icon: ImageVector,
+private fun OurHomePlaylistDivider(
+    @androidx.annotation.DrawableRes resId: Int,
+    colorFilter: androidx.compose.ui.graphics.ColorFilter?,
+) {
+    Image(
+        painter = androidx.compose.ui.res.painterResource(id = resId),
+        contentDescription = "播放进度分割线",
+        colorFilter = colorFilter,
+        contentScale = ContentScale.FillWidth,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp, vertical = 1.dp),
+    )
+}
+
+@Composable
+private fun OurHomePlaylistTrackItem(
+    @androidx.annotation.DrawableRes cdResId: Int,
     title: String,
-    subtitle: String,
-    drawerItemAlpha: Float,
-    materialMode: DisplayMaterialMode,
+    textColor: Color,
+    frameColorFilter: androidx.compose.ui.graphics.ColorFilter?,
     onClick: () -> Unit,
 ) {
-    DrawerItemSurface(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        drawerItemAlpha = drawerItemAlpha,
-        materialMode = materialMode,
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(64.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable { onClick() },
+        contentAlignment = Alignment.CenterStart,
     ) {
+        // 1. 图2 精修后的扇形蕾丝花边 + 粉色波点 + 右侧十字绑带外框（随 5 色主题智能染色）
+        Image(
+            painter = androidx.compose.ui.res.painterResource(id = R.drawable.kitten_drawer_playlist_frame),
+            contentDescription = title,
+            colorFilter = frameColorFilter,
+            contentScale = ContentScale.FillBounds,
+            modifier = Modifier.fillMaxSize(),
+        )
+
+        // 2. 左侧专属 CD 碟片 + 中间单行歌名（右侧留出蕾丝框自带的十字交叉绑带 ×·×·×·×）
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 11.dp),
+                .fillMaxSize()
+                .padding(start = 14.dp, end = 34.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                modifier = Modifier.size(36.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = title,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp),
-                    )
-                }
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Icon(
-                imageVector = HugeIcons.ArrowRight01,
+            Image(
+                painter = androidx.compose.ui.res.painterResource(id = cdResId),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.size(16.dp),
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.size(44.dp),
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                ),
+                color = textColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
         }
     }
