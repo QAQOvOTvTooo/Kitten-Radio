@@ -135,7 +135,7 @@ import org.koin.compose.koinInject
 import java.io.File
 
 // ============================================================================
-// 4. 复古手帐掌机 · 3款机身皮肤 + 真实按键热区 + HTML/JS卡带仓 (RetroGameConsolePage)
+// 4. 复古手帐掌机 · 巧克曲奇3款配色 + 沉浸式放大机身 + 顶栏收纳菜单 (RetroGameConsolePage)
 // ============================================================================
 
 @Serializable
@@ -162,7 +162,8 @@ fun RetroGameConsolePage() {
     val prefs = remember { context.getSharedPreferences("our_home_game_store", Context.MODE_PRIVATE) }
 
     var consoleSkin by remember {
-        mutableStateOf(prefs.getString("console_skin_id", "choco") ?: "choco") // "choco" | "berry" | "tama"
+        val saved = prefs.getString("console_skin_id", "choco") ?: "choco"
+        mutableStateOf(if (saved in listOf("choco", "mint", "pink")) saved else "choco")
     }
     var tintConsoleWithTheme by remember {
         mutableStateOf(prefs.getBoolean("console_tint_theme", false))
@@ -233,6 +234,7 @@ fun RetroGameConsolePage() {
     var isPlayingGame by remember { mutableStateOf(false) }
     var isFullScreenWebView by remember { mutableStateOf(false) }
     var showWriteHtmlDialog by remember { mutableStateOf(false) }
+    var showCartridgeSwitchDialog by remember { mutableStateOf(false) }
     var activeWebView by remember { mutableStateOf<WebView?>(null) }
     var reloadNonce by remember { mutableIntStateOf(0) }
 
@@ -296,7 +298,22 @@ fun RetroGameConsolePage() {
                 enSubtitle = "RETRO CONSOLE",
                 menuActions = listOf(
                     OurHomeTopMenuAction(
-                        label = "🍫 机身皮肤：巧克曲奇",
+                        label = if (isFullScreenWebView) "📱 缩回掌机机身" else "⛶ 全屏展开游戏画面",
+                        onClick = {
+                            if (!isPlayingGame) isPlayingGame = true
+                            isFullScreenWebView = !isFullScreenWebView
+                        },
+                    ),
+                    OurHomeTopMenuAction(
+                        label = if (isPlayingGame) "🎒 卡带仓（退出当前游戏）" else "▶️ 启动当前卡带",
+                        onClick = { isPlayingGame = !isPlayingGame },
+                    ),
+                    OurHomeTopMenuAction(
+                        label = "🔄 换卡带（当前：${selectedGame?.title ?: "无"}）",
+                        onClick = { showCartridgeSwitchDialog = true },
+                    ),
+                    OurHomeTopMenuAction(
+                        label = "🍫 巧克曲奇：经典可可棕",
                         badge = if (consoleSkin == "choco") "✓ 使用中" else "",
                         onClick = {
                             consoleSkin = "choco"
@@ -304,19 +321,19 @@ fun RetroGameConsolePage() {
                         },
                     ),
                     OurHomeTopMenuAction(
-                        label = "🍰 机身皮肤：草莓甜点",
-                        badge = if (consoleSkin == "berry") "✓ 使用中" else "",
+                        label = "🌿 巧克曲奇：薄荷海盐蓝",
+                        badge = if (consoleSkin == "mint") "✓ 使用中" else "",
                         onClick = {
-                            consoleSkin = "berry"
-                            prefs.edit().putString("console_skin_id", "berry").apply()
+                            consoleSkin = "mint"
+                            prefs.edit().putString("console_skin_id", "mint").apply()
                         },
                     ),
                     OurHomeTopMenuAction(
-                        label = "🥚 机身皮肤：拓麻歌子",
-                        badge = if (consoleSkin == "tama") "✓ 使用中" else "",
+                        label = "🍓 巧克曲奇：草莓甜心粉",
+                        badge = if (consoleSkin == "pink") "✓ 使用中" else "",
                         onClick = {
-                            consoleSkin = "tama"
-                            prefs.edit().putString("console_skin_id", "tama").apply()
+                            consoleSkin = "pink"
+                            prefs.edit().putString("console_skin_id", "pink").apply()
                         },
                     ),
                     OurHomeTopMenuAction(
@@ -347,18 +364,19 @@ fun RetroGameConsolePage() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 6.dp, vertical = 2.dp),
+                .padding(horizontal = 2.dp, vertical = 2.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.Center,
         ) {
             if (isFullScreenWebView) {
                 // ============================================================
-                // 全屏畅玩模式（点击右上角可随时缩回掌机机身内）
+                // 全屏畅玩模式（通过右上角菜单可随时缩回掌机机身）
                 // ============================================================
                 Surface(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
                     shape = RoundedCornerShape(24.dp),
                     color = Color.White,
                     border = BorderStroke(2.dp, palette.primary.copy(alpha = 0.45f)),
@@ -384,32 +402,13 @@ fun RetroGameConsolePage() {
                                 }
                             }
                         )
-                        Surface(
-                            shape = RoundedCornerShape(50),
-                            color = Color.Black.copy(alpha = 0.65f),
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(10.dp)
-                                .clickable { isFullScreenWebView = false },
-                        ) {
-                            Text(
-                                text = "🎮 缩回掌机机身",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                            )
-                        }
                     }
                 }
             } else {
                 // ============================================================
-                // 仿真手帐掌机机身模式（屏幕内嵌在机身窗口 + 十字键/ABXY/MENU/START 真实点击热区）
+                // 放大版巧克曲奇复古掌机（移除屏幕内遮挡按钮与底部换卡带芯片栏，机身最大化）
                 // ============================================================
-                val consoleAspect = when (consoleSkin) {
-                    "choco" -> 840f / 1228f
-                    "berry" -> 720f / 775f
-                    else -> 720f / 730f
-                }
+                val consoleAspect = 840f / 1228f
 
                 Box(
                     modifier = Modifier
@@ -422,205 +421,132 @@ fun RetroGameConsolePage() {
                             .fillMaxSize()
                             .aspectRatio(consoleAspect, matchHeightConstraintsFirst = false),
                     ) {
-                        // 屏幕窗口在不同机身皮肤下的精确相对坐标 (left, top, width, height)
-                        val screenLeft = when (consoleSkin) {
-                            "choco" -> maxWidth * 0.142f
-                            "berry" -> maxWidth * 0.275f
-                            else -> maxWidth * 0.215f
-                        }
-                        val screenTop = when (consoleSkin) {
-                            "choco" -> maxHeight * 0.095f
-                            "berry" -> maxHeight * 0.165f
-                            else -> maxHeight * 0.285f
-                        }
-                        val screenWidth = when (consoleSkin) {
-                            "choco" -> maxWidth * 0.716f
-                            "berry" -> maxWidth * 0.435f
-                            else -> maxWidth * 0.510f
-                        }
-                        val screenHeight = when (consoleSkin) {
-                            "choco" -> maxHeight * 0.512f
-                            "berry" -> maxHeight * 0.415f
-                            else -> maxHeight * 0.425f
-                        }
+                        val screenLeft = maxWidth * 0.142f
+                        val screenTop = maxHeight * 0.095f
+                        val screenWidth = maxWidth * 0.716f
+                        val screenHeight = maxHeight * 0.512f
 
-                        // 对于 🍫巧克曲奇掌机，机身 PNG 中心屏幕已经是镂空透明的，所以屏幕放在机身底层，让四角的蝴蝶结、四叶草自然压在屏幕边缘上！
-                        // 对于 🍰草莓甜点 和 🥚拓麻歌子，屏幕是不透明奶油底，所以屏幕叠在对应窗口上！
-                        @Composable
-                        fun ScreenViewportContent() {
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = screenLeft, y = screenTop)
-                                    .width(screenWidth)
-                                    .height(screenHeight)
-                                    .clip(RoundedCornerShape(if (consoleSkin == "choco") 18.dp else 12.dp))
-                                    .background(if (consoleSkin == "choco") Color(0xFF1E1614) else Color(0xFFFFFBF5)),
-                            ) {
-                                if (!isPlayingGame) {
-                                    // 待机卡带选择仓画面
+                        // 第一层：底层内嵌液晶屏幕（让四角蝴蝶结与四叶草自然压在屏幕边缘上）
+                        Box(
+                            modifier = Modifier
+                                .offset(x = screenLeft, y = screenTop)
+                                .width(screenWidth)
+                                .height(screenHeight)
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color(0xFF1E1614)),
+                        ) {
+                            if (!isPlayingGame) {
+                                // 待机卡带选择仓画面
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(
+                                            top = 12.dp,
+                                            bottom = 42.dp,
+                                            start = 10.dp,
+                                            end = 86.dp,
+                                        ),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Text(
+                                        text = "🎮 SELECT GAME",
+                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
+                                        color = Color(0xFFFFD6E0),
+                                    )
                                     Column(
                                         modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(
-                                                top = if (consoleSkin == "choco") 12.dp else 8.dp,
-                                                bottom = if (consoleSkin == "choco") 42.dp else 8.dp,
-                                                start = 10.dp,
-                                                end = if (consoleSkin == "choco") 86.dp else 10.dp,
-                                            ),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                                            .weight(1f)
+                                            .verticalScroll(rememberScrollState()),
+                                        verticalArrangement = Arrangement.spacedBy(5.dp),
                                     ) {
-                                        Text(
-                                            text = "🎮 SELECT GAME",
-                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
-                                            color = if (consoleSkin == "choco") Color(0xFFFFD6E0) else palette.primary,
-                                        )
-                                        Column(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .verticalScroll(rememberScrollState()),
-                                            verticalArrangement = Arrangement.spacedBy(5.dp),
-                                        ) {
-                                            games.forEach { cart ->
-                                                val isSel = selectedGame?.id == cart.id
-                                                Surface(
-                                                    shape = RoundedCornerShape(10.dp),
-                                                    color = if (isSel) {
-                                                        if (consoleSkin == "choco") Color(0xFFF3A6C0) else palette.primary
-                                                    } else {
-                                                        if (consoleSkin == "choco") Color.White.copy(alpha = 0.14f) else palette.softContainer
+                                        games.forEach { cart ->
+                                            val isSel = selectedGame?.id == cart.id
+                                            Surface(
+                                                shape = RoundedCornerShape(10.dp),
+                                                color = if (isSel) Color(0xFFF3A6C0) else Color.White.copy(alpha = 0.14f),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        selectedGame = cart
+                                                        isPlayingGame = true
                                                     },
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .clickable {
-                                                            selectedGame = cart
-                                                            isPlayingGame = true
-                                                        },
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
                                                 ) {
-                                                    Row(
-                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                    ) {
+                                                    Text(
+                                                        text = (if (isSel) "▶ " else "   ") + cart.title,
+                                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                        color = if (isSel) Color(0xFF2A1E1B) else Color(0xFFFFF5EA),
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier.weight(1f),
+                                                    )
+                                                    if (games.size > 1 && cart.id != "default_1") {
                                                         Text(
-                                                            text = (if (isSel) "▶ " else "   ") + cart.title,
-                                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                                            color = if (isSel) {
-                                                                if (consoleSkin == "choco") Color(0xFF2A1E1B) else Color.White
-                                                            } else {
-                                                                if (consoleSkin == "choco") Color(0xFFFFF5EA) else palette.textPrimary
-                                                            },
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis,
-                                                            modifier = Modifier.weight(1f),
+                                                            text = "×",
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = if (isSel) Color.White else palette.primary,
+                                                            modifier = Modifier
+                                                                .padding(start = 4.dp)
+                                                                .clickable {
+                                                                    val remaining = games.filterNot { it.id == cart.id }
+                                                                    saveGames(remaining)
+                                                                    if (selectedGame?.id == cart.id) {
+                                                                        selectedGame = remaining.firstOrNull()
+                                                                    }
+                                                                },
                                                         )
-                                                        if (games.size > 1 && cart.id != "default_1") {
-                                                            Text(
-                                                                text = "×",
-                                                                style = MaterialTheme.typography.labelSmall,
-                                                                color = if (isSel) Color.White else palette.primary,
-                                                                modifier = Modifier
-                                                                    .padding(start = 4.dp)
-                                                                    .clickable {
-                                                                        val remaining = games.filterNot { it.id == cart.id }
-                                                                        saveGames(remaining)
-                                                                        if (selectedGame?.id == cart.id) {
-                                                                            selectedGame = remaining.firstOrNull()
-                                                                        }
-                                                                    },
-                                                            )
-                                                        }
                                                     }
                                                 }
                                             }
                                         }
-                                        if (consoleSkin != "choco") {
-                                            Surface(
-                                                shape = RoundedCornerShape(50),
-                                                color = palette.primary,
-                                                modifier = Modifier
-                                                    .align(Alignment.CenterHorizontally)
-                                                    .clickable { isPlayingGame = true },
-                                            ) {
-                                                Text(
-                                                    text = "▶ START",
-                                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
-                                                    color = Color.White,
-                                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
-                                                )
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    // 游戏运行画面 (WebView)
-                                    val currentHtml = selectedGame?.htmlContent ?: defaultGameHtml
-                                    AndroidView(
-                                        modifier = Modifier.fillMaxSize(),
-                                        factory = { ctx ->
-                                            WebView(ctx).apply {
-                                                this.settings.javaScriptEnabled = true
-                                                this.settings.domStorageEnabled = true
-                                                webViewClient = WebViewClient()
-                                                activeWebView = this
-                                            }
-                                        },
-                                        update = { webView ->
-                                            activeWebView = webView
-                                            val tagKey = "${selectedGame?.id}_${reloadNonce}"
-                                            if (webView.tag != tagKey) {
-                                                webView.tag = tagKey
-                                                webView.loadDataWithBaseURL(null, currentHtml, "text/html", "UTF-8", null)
-                                            }
-                                        }
-                                    )
-                                    // 屏幕右上角悬浮「全屏 / 菜单」迷你胶囊
-                                    Row(
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(6.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    ) {
-                                        Surface(
-                                            shape = RoundedCornerShape(50),
-                                            color = Color.Black.copy(alpha = 0.55f),
-                                            modifier = Modifier.clickable { isPlayingGame = false },
-                                        ) {
-                                            Text(
-                                                text = "卡带仓",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = Color.White,
-                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                                            )
-                                        }
-                                        Surface(
-                                            shape = RoundedCornerShape(50),
-                                            color = Color.Black.copy(alpha = 0.55f),
-                                            modifier = Modifier.clickable { isFullScreenWebView = true },
-                                        ) {
-                                            Text(
-                                                text = "⛶全屏",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = Color.White,
-                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
-                                            )
-                                        }
                                     }
                                 }
+                            } else {
+                                // 游戏运行画面 (WebView) —— 不再放右上角遮挡按钮，清清爽爽！
+                                val currentHtml = selectedGame?.htmlContent ?: defaultGameHtml
+                                AndroidView(
+                                    modifier = Modifier.fillMaxSize(),
+                                    factory = { ctx ->
+                                        WebView(ctx).apply {
+                                            this.settings.javaScriptEnabled = true
+                                            this.settings.domStorageEnabled = true
+                                            webViewClient = WebViewClient()
+                                            activeWebView = this
+                                        }
+                                    },
+                                    update = { webView ->
+                                        activeWebView = webView
+                                        val tagKey = "${selectedGame?.id}_${reloadNonce}"
+                                        if (webView.tag != tagKey) {
+                                            webView.tag = tagKey
+                                            webView.loadDataWithBaseURL(null, currentHtml, "text/html", "UTF-8", null)
+                                        }
+                                    }
+                                )
                             }
                         }
 
-                        if (consoleSkin == "choco") {
-                            ScreenViewportContent()
-                        }
-
-                        // 机身外壳高清贴图
+                        // 第二层：巧克曲奇三色机身高清镂空贴图
                         val shellRes = when (consoleSkin) {
-                            "choco" -> if (isPlayingGame) {
+                            "mint" -> if (isPlayingGame) {
+                                me.rerere.rikkahub.R.drawable.kitten_console_mint_playing
+                            } else {
+                                me.rerere.rikkahub.R.drawable.kitten_console_mint_clean
+                            }
+                            "pink" -> if (isPlayingGame) {
+                                me.rerere.rikkahub.R.drawable.kitten_console_pink_playing
+                            } else {
+                                me.rerere.rikkahub.R.drawable.kitten_console_pink_clean
+                            }
+                            else -> if (isPlayingGame) {
                                 me.rerere.rikkahub.R.drawable.kitten_console_choco_playing
                             } else {
                                 me.rerere.rikkahub.R.drawable.kitten_console_choco_clean
                             }
-                            "berry" -> me.rerere.rikkahub.R.drawable.kitten_console_berry_clean
-                            else -> me.rerere.rikkahub.R.drawable.kitten_console_tama_clean
                         }
                         Image(
                             painter = androidx.compose.ui.res.painterResource(id = shellRes),
@@ -630,180 +556,181 @@ fun RetroGameConsolePage() {
                             modifier = Modifier.fillMaxSize(),
                         )
 
-                        if (consoleSkin != "choco") {
-                            ScreenViewportContent()
-                        }
-
-                        // ====================================================
-                        // 机身上的真实物理按键透明点击热区
-                        // ====================================================
-                        if (consoleSkin == "choco") {
-                            // 屏幕底部 START 胶囊热区（待机时点击直接开始游戏）
-                            if (!isPlayingGame) {
-                                Box(
-                                    modifier = Modifier
-                                        .offset(x = maxWidth * 0.35f, y = maxHeight * 0.54f)
-                                        .width(maxWidth * 0.30f)
-                                        .height(maxHeight * 0.06f)
-                                        .clip(RoundedCornerShape(50))
-                                        .clickable { isPlayingGame = true }
-                                )
-                            }
-                            // 小翅膀爱心 MENU 键 -> 返回卡带选择仓
+                        // 第三层：机身上的真实物理按键透明点击热区
+                        if (!isPlayingGame) {
                             Box(
                                 modifier = Modifier
-                                    .offset(x = maxWidth * 0.35f, y = maxHeight * 0.61f)
+                                    .offset(x = maxWidth * 0.35f, y = maxHeight * 0.54f)
                                     .width(maxWidth * 0.30f)
-                                    .height(maxHeight * 0.08f)
-                                    .clip(RoundedCornerShape(50))
-                                    .clickable {
-                                        isPlayingGame = !isPlayingGame
-                                    }
-                            )
-                            // 饼干十字键 D-Pad (上 / 下 / 左 / 右)
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.22f, y = maxHeight * 0.66f)
-                                    .size(maxWidth * 0.10f)
-                                    .clip(CircleShape)
-                                    .clickable { sendConsoleKey("ArrowUp") }
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.22f, y = maxHeight * 0.78f)
-                                    .size(maxWidth * 0.10f)
-                                    .clip(CircleShape)
-                                    .clickable { sendConsoleKey("ArrowDown") }
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.13f, y = maxHeight * 0.72f)
-                                    .size(maxWidth * 0.10f)
-                                    .clip(CircleShape)
-                                    .clickable { sendConsoleKey("ArrowLeft") }
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.31f, y = maxHeight * 0.72f)
-                                    .size(maxWidth * 0.10f)
-                                    .clip(CircleShape)
-                                    .clickable { sendConsoleKey("ArrowRight") }
-                            )
-                            // 四颗小熊曲奇键 (上Y / 下B / 左X / 右A)
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.68f, y = maxHeight * 0.66f)
-                                    .size(maxWidth * 0.11f)
-                                    .clip(CircleShape)
-                                    .clickable { sendConsoleKey("ArrowUp") }
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.68f, y = maxHeight * 0.78f)
-                                    .size(maxWidth * 0.11f)
-                                    .clip(CircleShape)
-                                    .clickable { sendConsoleKey(" ") }
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.59f, y = maxHeight * 0.72f)
-                                    .size(maxWidth * 0.11f)
-                                    .clip(CircleShape)
-                                    .clickable { sendConsoleKey("ArrowLeft") }
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.77f, y = maxHeight * 0.72f)
-                                    .size(maxWidth * 0.11f)
-                                    .clip(CircleShape)
-                                    .clickable { sendConsoleKey("Enter") }
-                            )
-                            // 底部 START 与 RESET 斜键
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.40f, y = maxHeight * 0.80f)
-                                    .width(maxWidth * 0.11f)
                                     .height(maxHeight * 0.06f)
+                                    .clip(RoundedCornerShape(50))
                                     .clickable { isPlayingGame = true }
                             )
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.52f, y = maxHeight * 0.80f)
-                                    .width(maxWidth * 0.11f)
-                                    .height(maxHeight * 0.06f)
-                                    .clickable {
-                                        reloadNonce++
-                                        isPlayingGame = true
-                                        toaster.show("已重置当前卡带游戏 🔄", type = ToastType.Info)
-                                    }
-                            )
-                        } else if (consoleSkin == "berry") {
-                            // 草莓贴纸掌机底部十字键与 ABXY 热区
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.26f, y = maxHeight * 0.62f)
-                                    .size(maxWidth * 0.16f)
-                                    .clickable { sendConsoleKey("ArrowRight") }
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.49f, y = maxHeight * 0.64f)
-                                    .size(maxWidth * 0.20f)
-                                    .clickable { sendConsoleKey("Enter") }
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.36f, y = maxHeight * 0.79f)
-                                    .width(maxWidth * 0.16f)
-                                    .height(maxHeight * 0.07f)
-                                    .clickable { isPlayingGame = !isPlayingGame }
-                            )
-                        } else {
-                            // 拓麻歌子宠物蛋底部三颗按键（左圆键切换、中间五角星确认、右圆键返回卡带仓）
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.30f, y = maxHeight * 0.78f)
-                                    .size(maxWidth * 0.10f)
-                                    .clip(CircleShape)
-                                    .clickable { sendConsoleKey("ArrowLeft") }
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.43f, y = maxHeight * 0.77f)
-                                    .size(maxWidth * 0.13f)
-                                    .clip(CircleShape)
-                                    .clickable { sendConsoleKey("Enter") }
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.58f, y = maxHeight * 0.78f)
-                                    .size(maxWidth * 0.10f)
-                                    .clip(CircleShape)
-                                    .clickable { isPlayingGame = !isPlayingGame }
-                            )
                         }
+                        // 小翅膀爱心 MENU 键 -> 切换卡带选择仓
+                        Box(
+                            modifier = Modifier
+                                .offset(x = maxWidth * 0.35f, y = maxHeight * 0.61f)
+                                .width(maxWidth * 0.30f)
+                                .height(maxHeight * 0.08f)
+                                .clip(RoundedCornerShape(50))
+                                .clickable { isPlayingGame = !isPlayingGame }
+                        )
+                        // 饼干十字键 D-Pad (上 / 下 / 左 / 右)
+                        Box(
+                            modifier = Modifier
+                                .offset(x = maxWidth * 0.22f, y = maxHeight * 0.66f)
+                                .size(maxWidth * 0.10f)
+                                .clip(CircleShape)
+                                .clickable { sendConsoleKey("ArrowUp") }
+                        )
+                        Box(
+                            modifier = Modifier
+                                .offset(x = maxWidth * 0.22f, y = maxHeight * 0.78f)
+                                .size(maxWidth * 0.10f)
+                                .clip(CircleShape)
+                                .clickable { sendConsoleKey("ArrowDown") }
+                        )
+                        Box(
+                            modifier = Modifier
+                                .offset(x = maxWidth * 0.13f, y = maxHeight * 0.72f)
+                                .size(maxWidth * 0.10f)
+                                .clip(CircleShape)
+                                .clickable { sendConsoleKey("ArrowLeft") }
+                        )
+                        Box(
+                            modifier = Modifier
+                                .offset(x = maxWidth * 0.31f, y = maxHeight * 0.72f)
+                                .size(maxWidth * 0.10f)
+                                .clip(CircleShape)
+                                .clickable { sendConsoleKey("ArrowRight") }
+                        )
+                        // 四颗小熊曲奇键 (上Y / 下B / 左X / 右A)
+                        Box(
+                            modifier = Modifier
+                                .offset(x = maxWidth * 0.68f, y = maxHeight * 0.66f)
+                                .size(maxWidth * 0.11f)
+                                .clip(CircleShape)
+                                .clickable { sendConsoleKey("ArrowUp") }
+                        )
+                        Box(
+                            modifier = Modifier
+                                .offset(x = maxWidth * 0.68f, y = maxHeight * 0.78f)
+                                .size(maxWidth * 0.11f)
+                                .clip(CircleShape)
+                                .clickable { sendConsoleKey(" ") }
+                        )
+                        Box(
+                            modifier = Modifier
+                                .offset(x = maxWidth * 0.59f, y = maxHeight * 0.72f)
+                                .size(maxWidth * 0.11f)
+                                .clip(CircleShape)
+                                .clickable { sendConsoleKey("ArrowLeft") }
+                        )
+                        Box(
+                            modifier = Modifier
+                                .offset(x = maxWidth * 0.77f, y = maxHeight * 0.72f)
+                                .size(maxWidth * 0.11f)
+                                .clip(CircleShape)
+                                .clickable { sendConsoleKey("Enter") }
+                        )
+                        // 底部 START 与 RESET 斜键
+                        Box(
+                            modifier = Modifier
+                                .offset(x = maxWidth * 0.40f, y = maxHeight * 0.80f)
+                                .width(maxWidth * 0.11f)
+                                .height(maxHeight * 0.06f)
+                                .clickable { isPlayingGame = true }
+                        )
+                        Box(
+                            modifier = Modifier
+                                .offset(x = maxWidth * 0.52f, y = maxHeight * 0.80f)
+                                .width(maxWidth * 0.11f)
+                                .height(maxHeight * 0.06f)
+                                .clickable {
+                                    reloadNonce++
+                                    isPlayingGame = true
+                                    toaster.show("已重置当前卡带游戏 🔄", type = ToastType.Info)
+                                }
+                        )
                     }
                 }
             }
+        }
+    }
 
-            // 底部快捷卡带切换条
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                games.take(4).forEach { cart ->
-                    FilterChip(
-                        selected = selectedGame?.id == cart.id,
-                        onClick = {
-                            selectedGame = cart
-                            isPlayingGame = true
-                        },
-                        label = { Text(cart.title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                    )
+    if (showCartridgeSwitchDialog) {
+        AlertDialog(
+            onDismissRequest = { showCartridgeSwitchDialog = false },
+            title = { Text("🎒 掌机卡带收纳盒 · 换卡带") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    games.forEachIndexed { idx, cart ->
+                        val isSel = selectedGame?.id == cart.id
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isSel) palette.primary.copy(alpha = 0.15f) else palette.softContainer,
+                            border = BorderStroke(
+                                width = if (isSel) 1.5.dp else 1.dp,
+                                color = if (isSel) palette.primary else palette.primary.copy(alpha = 0.25f),
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedGame = cart
+                                    isPlayingGame = true
+                                    showCartridgeSwitchDialog = false
+                                    toaster.show("已换上卡带「${cart.title}」 🎮", type = ToastType.Success)
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = "${if (isSel) "🎀 " else "🕹️ "}${idx + 1}. ${cart.title}",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium
+                                    ),
+                                    color = palette.textPrimary,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                if (games.size > 1 && cart.id != "default_1") {
+                                    IconButton(
+                                        onClick = {
+                                            val remaining = games.filterNot { it.id == cart.id }
+                                            saveGames(remaining)
+                                            if (selectedGame?.id == cart.id) {
+                                                selectedGame = remaining.firstOrNull()
+                                            }
+                                        },
+                                        modifier = Modifier.size(28.dp),
+                                    ) {
+                                        Icon(
+                                            HugeIcons.Delete01,
+                                            contentDescription = "删除卡带",
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showCartridgeSwitchDialog = false }) {
+                    Text("关闭")
                 }
             }
-        }
+        )
     }
 
     if (showWriteHtmlDialog) {
