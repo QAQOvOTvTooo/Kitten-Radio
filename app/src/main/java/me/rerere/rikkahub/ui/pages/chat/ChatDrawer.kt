@@ -291,7 +291,7 @@ fun ChatDrawerContent(
                             contentScale = ContentScale.FillBounds,
                             modifier = Modifier.fillMaxSize(),
                         )
-                        // 中间原本 Night Drive / Luvbyte 的位置，动态显示「窗口」与当前窗口标题
+                        // 中间原本 Night Drive / Luvbyte 的位置，动态显示「当前播放」与当前窗口标题
                         Column(
                             modifier = Modifier
                                 .align(Alignment.TopStart)
@@ -304,7 +304,7 @@ fun ChatDrawerContent(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 Text(
-                                    text = "窗口",
+                                    text = "当前播放",
                                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
                                     color = Color(0xFF2F2D3C),
                                     maxLines = 1,
@@ -324,7 +324,7 @@ fun ChatDrawerContent(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        // 右侧暂停键处叠放「+ 新建窗口」点击热区，右侧列表图标处点击展开/收起窗口列表
+                        // 移除遮挡底图图案的实体「+」圆圈，改为完全透明无痕的原画图标热区（点原画暂停键位置也可直接开启新窗口）
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
@@ -332,26 +332,10 @@ fun ChatDrawerContent(
                                 .size(cw * 0.14f)
                                 .clip(CircleShape)
                                 .clickable { navigateToChatPage(navController) },
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = Color.White.copy(alpha = 0.72f),
-                                modifier = Modifier.size(22.dp),
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = HugeIcons.Add01,
-                                        contentDescription = "新建窗口",
-                                        tint = Color(0xFF2F2D3C),
-                                        modifier = Modifier.size(14.dp),
-                                    )
-                                }
-                            }
-                        }
+                        )
                     }
 
-                    // 展开后的窗口管理面板（分组、切换窗口、删除窗口、编辑窗口名字）
+                    // 展开后的窗口管理面板（内置隐藏式「+ 开启新窗口」入口、分组、切换窗口、删除窗口、编辑窗口名字）
                     AnimatedVisibility(
                         visible = windowsExpanded,
                         enter = expandVertically() + fadeIn(),
@@ -371,14 +355,47 @@ fun ChatDrawerContent(
                                     .padding(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
-                                FolderBar(
-                                    folders = folders,
-                                    selectedFolderId = selectedFolderId,
-                                    onSelect = { drawerVm.selectFolder(it) },
-                                    onCreate = { showCreateFolderDialog = true },
-                                    onRename = { folderToRename = it },
-                                    onDelete = { folderToDelete = it },
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Surface(
+                                        onClick = { navigateToChatPage(navController) },
+                                        shape = CircleShape,
+                                        color = palette.primary.copy(alpha = 0.22f),
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            Icon(
+                                                imageVector = HugeIcons.Add01,
+                                                contentDescription = "开启新窗口",
+                                                tint = palette.textPrimary,
+                                                modifier = Modifier.size(13.dp),
+                                            )
+                                            Text(
+                                                text = "新窗口",
+                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                                color = palette.textPrimary,
+                                                maxLines = 1,
+                                            )
+                                        }
+                                    }
+
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        FolderBar(
+                                            folders = folders,
+                                            selectedFolderId = selectedFolderId,
+                                            onSelect = { drawerVm.selectFolder(it) },
+                                            onCreate = { showCreateFolderDialog = true },
+                                            onRename = { folderToRename = it },
+                                            onDelete = { folderToDelete = it },
+                                        )
+                                    }
+                                }
 
                                 ConversationList(
                                     current = current,
@@ -495,7 +512,7 @@ fun ChatDrawerContent(
                     colorFilter = assetColorFilter,
                 )
 
-                // 3. 最底下并排放置三个纯图标按钮：设置、搜索聊天、聊天历史（不带文字，清爽美观）
+                // 3. 最底下并排放置三个纯图标按钮：左「聊天历史」、中「搜索聊天」、右「设置」（对调后更顺手）
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -504,12 +521,12 @@ fun ChatDrawerContent(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
-                        onClick = { navController.navigate(Screen.Setting) },
+                        onClick = { navController.navigate(Screen.History) },
                         modifier = Modifier.size(44.dp),
                     ) {
                         Icon(
-                            imageVector = HugeIcons.Settings03,
-                            contentDescription = "设置",
+                            imageVector = HugeIcons.TransactionHistory,
+                            contentDescription = "聊天历史",
                             tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(22.dp),
                         )
@@ -528,12 +545,12 @@ fun ChatDrawerContent(
                     }
 
                     IconButton(
-                        onClick = { navController.navigate(Screen.History) },
+                        onClick = { navController.navigate(Screen.Setting) },
                         modifier = Modifier.size(44.dp),
                     ) {
                         Icon(
-                            imageVector = HugeIcons.TransactionHistory,
-                            contentDescription = "聊天历史",
+                            imageVector = HugeIcons.Settings03,
+                            contentDescription = "设置",
                             tint = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(22.dp),
                         )
@@ -971,24 +988,25 @@ private fun OurHomePlaylistTrackItem(
             modifier = Modifier.fillMaxSize(),
         )
 
-        // 2. 左侧专属 CD 碟片 + 中间单行歌名（右侧留出蕾丝框自带的十字交叉绑带 ×·×·×·×）
+        // 2. 左侧专属 CD 碟片 + 中间单行歌名（右侧留出蕾丝框自带的十字交叉绑带 ×·×·×·×，微调间距防止长歌名出现省略号）
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 14.dp, end = 34.dp),
+                .padding(start = 12.dp, end = 24.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(9.dp),
         ) {
             Image(
                 painter = androidx.compose.ui.res.painterResource(id = cdResId),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.size(44.dp),
+                modifier = Modifier.size(42.dp),
             )
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Bold,
+                    fontSize = androidx.compose.ui.unit.TextUnit(13.2f, androidx.compose.ui.unit.TextUnitType.Sp),
                 ),
                 color = textColor,
                 maxLines = 1,

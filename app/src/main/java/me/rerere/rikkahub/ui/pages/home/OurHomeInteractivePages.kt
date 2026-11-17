@@ -3105,7 +3105,8 @@ fun MyProfileSettingPage() {
                             .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        me.rerere.rikkahub.ui.theme.KittenPalettes.forEach { item ->
+                        // 把「✦ 自定义」放在显眼位置并包含全部内置配色
+                        me.rerere.rikkahub.ui.theme.allKittenPalettes().forEach { item ->
                             val selected = settings.ourHomeSetting.kittenPaletteId == item.id
                             FilterChip(
                                 selected = selected,
@@ -3120,6 +3121,251 @@ fun MyProfileSettingPage() {
                                 },
                                 label = { Text(item.title, maxLines = 1) },
                             )
+                        }
+                    }
+
+                    // 当选中「✦ 自定义」配色（或点击展开自定义调色盘）时，显示专属全屋调色工作台
+                    if (settings.ourHomeSetting.kittenPaletteId == "custom") {
+                        var activeChannel by remember { mutableStateOf(0) } // 0=主色, 1=副色, 2=底纸色
+                        val currentHex = when (activeChannel) {
+                            0 -> settings.ourHomeSetting.customPrimaryHex
+                            1 -> settings.ourHomeSetting.customSecondaryHex
+                            else -> settings.ourHomeSetting.customBackgroundHex
+                        }
+                        val currentColor = me.rerere.rikkahub.ui.theme.parseKittenHexColor(
+                            currentHex,
+                            if (activeChannel == 0) Color(0xFFF29CB8) else if (activeChannel == 1) Color(0xFF7E7894) else Color(0xFFFDF9FA)
+                        )
+                        var hexInput by remember(activeChannel, currentHex) { mutableStateOf(currentHex) }
+
+                        fun applyCustomHex(
+                            newPrimary: String = settings.ourHomeSetting.customPrimaryHex,
+                            newSecondary: String = settings.ourHomeSetting.customSecondaryHex,
+                            newBg: String = settings.ourHomeSetting.customBackgroundHex,
+                        ) {
+                            me.rerere.rikkahub.ui.theme.ActiveCustomPrimaryHex = newPrimary
+                            me.rerere.rikkahub.ui.theme.ActiveCustomSecondaryHex = newSecondary
+                            me.rerere.rikkahub.ui.theme.ActiveCustomBackgroundHex = newBg
+                            scope.launch {
+                                settingsStore.update(
+                                    settings.copy(
+                                        ourHomeSetting = settings.ourHomeSetting.copy(
+                                            kittenPaletteId = "custom",
+                                            customPrimaryHex = newPrimary,
+                                            customSecondaryHex = newSecondary,
+                                            customBackgroundHex = newBg,
+                                        )
+                                    )
+                                )
+                            }
+                        }
+
+                        fun updateActiveChannelColor(c: Color) {
+                            val hex = me.rerere.rikkahub.ui.theme.colorToKittenHex(c)
+                            hexInput = hex
+                            when (activeChannel) {
+                                0 -> applyCustomHex(newPrimary = hex)
+                                1 -> applyCustomHex(newSecondary = hex)
+                                else -> applyCustomHex(newBg = hex)
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                Text(
+                                    text = "✦ 绵绵的专属调色工作台（全屋插画与界面实时同步变色）",
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+
+                                // 1. 灵感配色配方一键载入
+                                val presets = listOf(
+                                    Triple("蜜桃乌龙", "#F29CB8", "#7E7894") to "#FDF9FA",
+                                    Triple("樱花抹茶", "#E898AC", "#6E8B74") to "#FBFDF9",
+                                    Triple("焦糖奶茶", "#D98A6C", "#7A655C") to "#FDFBF7",
+                                    Triple("星夜玫瑰", "#E07A88", "#655A7C") to "#FAF7FB",
+                                    Triple("海盐奶黄", "#E5B567", "#6C7D8C") to "#FDFBF5",
+                                    Triple("黑巧树莓", "#D46A84", "#4A4453") to "#F9F5F7",
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    presets.forEach { (triple, bgHex) ->
+                                        val (label, pHex, sHex) = triple
+                                        Surface(
+                                            onClick = { applyCustomHex(pHex, sHex, bgHex) },
+                                            shape = RoundedCornerShape(50),
+                                            color = me.rerere.rikkahub.ui.theme.parseKittenHexColor(pHex, Color(0xFFF29CB8)).copy(alpha = 0.18f),
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(10.dp)
+                                                        .background(me.rerere.rikkahub.ui.theme.parseKittenHexColor(pHex, Color(0xFFF29CB8)), CircleShape)
+                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(10.dp)
+                                                        .background(me.rerere.rikkahub.ui.theme.parseKittenHexColor(sHex, Color.Gray), CircleShape)
+                                                )
+                                                Text(label, style = MaterialTheme.typography.labelSmall)
+                                            }
+                                        }
+                                    }
+                                }
+
+                                // 2. 选择要调配的部位：主色调 / 副色调 / 手帐底纸色
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    val tabLabels = listOf(
+                                        "主色(粉区)" to settings.ourHomeSetting.customPrimaryHex,
+                                        "副色(顶栏)" to settings.ourHomeSetting.customSecondaryHex,
+                                        "手帐底纸" to settings.ourHomeSetting.customBackgroundHex,
+                                    )
+                                    tabLabels.forEachIndexed { idx, (label, hex) ->
+                                        val sel = activeChannel == idx
+                                        FilterChip(
+                                            selected = sel,
+                                            onClick = { activeChannel = idx },
+                                            leadingIcon = {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(12.dp)
+                                                        .background(
+                                                            me.rerere.rikkahub.ui.theme.parseKittenHexColor(hex, Color.White),
+                                                            CircleShape
+                                                        )
+                                                        .border(1.dp, Color.Gray.copy(alpha = 0.4f), CircleShape)
+                                                )
+                                            },
+                                            label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                                        )
+                                    }
+                                }
+
+                                // 3. 精选快捷色卡小圆点
+                                val swatches = when (activeChannel) {
+                                    0 -> listOf("#F29CB8", "#E6859E", "#D97B93", "#C89EC4", "#A799D6", "#8FB4D9", "#8EC2B0", "#A3C69C", "#E8B478", "#E08E79")
+                                    1 -> listOf("#7E7894", "#8E7A86", "#6B728E", "#5C6B73", "#6E827A", "#7A6A63", "#524D5C", "#8C8589", "#697096", "#4A4453")
+                                    else -> listOf("#FDF9FA", "#FAF6F8", "#F7F5FB", "#F4F7FA", "#F5F9F6", "#FDFBF6", "#F9F4F5", "#F2EEF5", "#EEF3F7", "#FFFFFF")
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    swatches.forEach { swHex ->
+                                        val swColor = me.rerere.rikkahub.ui.theme.parseKittenHexColor(swHex, Color.White)
+                                        val isCur = currentHex.equals(swHex, ignoreCase = true)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(if (isCur) 26.dp else 22.dp)
+                                                .background(swColor, CircleShape)
+                                                .border(
+                                                    width = if (isCur) 2.dp else 1.dp,
+                                                    color = if (isCur) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.35f),
+                                                    shape = CircleShape,
+                                                )
+                                                .clickable { updateActiveChannelColor(swColor) }
+                                        )
+                                    }
+                                }
+
+                                // 4. R / G / B 无级调色滑条
+                                val rInt = (currentColor.red * 255).roundToInt().coerceIn(0, 255)
+                                val gInt = (currentColor.green * 255).roundToInt().coerceIn(0, 255)
+                                val bInt = (currentColor.blue * 255).roundToInt().coerceIn(0, 255)
+
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("R $rInt", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(42.dp))
+                                    Slider(
+                                        value = rInt.toFloat(),
+                                        onValueChange = { v ->
+                                            updateActiveChannelColor(Color(v.roundToInt(), gInt, bInt))
+                                        },
+                                        valueRange = 0f..255f,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("G $gInt", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(42.dp))
+                                    Slider(
+                                        value = gInt.toFloat(),
+                                        onValueChange = { v ->
+                                            updateActiveChannelColor(Color(rInt, v.roundToInt(), bInt))
+                                        },
+                                        valueRange = 0f..255f,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("B $bInt", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(42.dp))
+                                    Slider(
+                                        value = bInt.toFloat(),
+                                        onValueChange = { v ->
+                                            updateActiveChannelColor(Color(rInt, gInt, v.roundToInt()))
+                                        },
+                                        valueRange = 0f..255f,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+
+                                // 5. #RRGGBB 色号直接输入与智能配底纸
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    OutlinedTextField(
+                                        value = hexInput,
+                                        onValueChange = { v ->
+                                            hexInput = v
+                                            val cleaned = v.trim().removePrefix("#")
+                                            if (cleaned.length == 6 && cleaned.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) {
+                                                val norm = "#${cleaned.uppercase()}"
+                                                when (activeChannel) {
+                                                    0 -> applyCustomHex(newPrimary = norm)
+                                                    1 -> applyCustomHex(newSecondary = norm)
+                                                    else -> applyCustomHex(newBg = norm)
+                                                }
+                                            }
+                                        },
+                                        label = { Text("色号 (#RRGGBB)") },
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    TextButton(
+                                        onClick = {
+                                            val pColor = me.rerere.rikkahub.ui.theme.parseKittenHexColor(
+                                                settings.ourHomeSetting.customPrimaryHex,
+                                                Color(0xFFF29CB8)
+                                            )
+                                            val autoBg = androidx.compose.ui.graphics.lerp(pColor, Color.White, 0.92f)
+                                            applyCustomHex(newBg = me.rerere.rikkahub.ui.theme.colorToKittenHex(autoBg))
+                                        }
+                                    ) {
+                                        Text("智能配底纸")
+                                    }
+                                }
+                            }
                         }
                     }
                     Row(

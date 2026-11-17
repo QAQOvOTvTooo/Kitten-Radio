@@ -345,6 +345,46 @@ fun SplashDiyElementView(
 }
 
 /**
+ * 开屏手帐画布底层背景：优先显示自定义全屏背景图，未设置时显示5色主题手帐网格底板
+ */
+@Composable
+fun SplashCanvasBackground(
+    homeSetting: OurHomeSetting,
+    palette: KittenPaletteSpec,
+) {
+    val bgPath = homeSetting.splashBackgroundPath
+    val bgBitmap = remember(bgPath) {
+        if (bgPath.isNotBlank() && File(bgPath).exists()) {
+            BitmapFactory.decodeFile(bgPath)?.asImageBitmap()
+        } else null
+    }
+    if (bgBitmap != null) {
+        Image(
+            bitmap = bgBitmap,
+            contentDescription = "开屏自定义背景图",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .let { mod ->
+                    if (homeSetting.enableGridBackground) {
+                        mod.kittenGridBackground(
+                            backgroundColor = palette.background,
+                            gridColor = palette.gridLineColor,
+                            cellSize = 22.dp,
+                        )
+                    } else {
+                        mod.background(palette.background)
+                    }
+                }
+        )
+    }
+}
+
+/**
  * 「设置 -> 显示设置 -> 开屏界面自定义」全屏手帐 DIY 画布编辑器
  */
 @Composable
@@ -376,10 +416,19 @@ fun SplashDiyFullEditorModal(
         }.getOrNull()
     }
 
-    var selectedItemId by remember { mutableStateOf<String?>(homeSetting.splashDiyItems.lastOrNull()?.id) }
+    // "__PLAYER__" 代表当前选中黑胶播放器小组件，默认打开即可看到播放器缩放与拖动提示
+    var selectedItemId by remember { mutableStateOf<String?>("__PLAYER__") }
     var showAddTextDialog by remember { mutableStateOf(false) }
     var showStickerPickerDialog by remember { mutableStateOf(false) }
     var showSongDialog by remember { mutableStateOf(false) }
+
+    val bgImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            copyUriToInternal(uri, "splash_bg")?.let { path ->
+                updateHome { it.copy(splashBackgroundPath = path) }
+            }
+        }
+    }
 
     val centerImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
@@ -408,25 +457,20 @@ fun SplashDiyFullEditorModal(
     }
 
     val selectedItem = homeSetting.splashDiyItems.find { it.id == selectedItemId }
+    val isPlayerSelected = selectedItemId == "__PLAYER__"
 
     BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .let { mod ->
-                if (homeSetting.enableGridBackground) {
-                    mod.kittenGridBackground(
-                        backgroundColor = palette.background,
-                        gridColor = palette.gridLineColor,
-                        cellSize = 22.dp,
-                    )
-                } else {
-                    mod.background(palette.background)
-                }
-            },
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
         val parentWidthPx = with(density) { maxWidth.toPx() }
         val parentHeightPx = with(density) { maxHeight.toPx() }
+
+        // 0. 底层背景图或手帐网格
+        SplashCanvasBackground(
+            homeSetting = homeSetting,
+            palette = palette,
+        )
 
         // 1. 播放器下方的 DIY 元素
         homeSetting.splashDiyItems.filter { !it.abovePlayer }.forEach { item ->
@@ -458,14 +502,55 @@ fun SplashDiyFullEditorModal(
             }
         }
 
-        // 2. 居中的图2 Night Drive 黑胶播放器
-        KittenNightDriveVinylCard(
-            homeSetting = homeSetting,
-            palette = palette,
-            onPickCenterImage = { centerImageLauncher.launch("image/*") },
-            onEditSongInfo = { showSongDialog = true },
-            onToggleSpin = { updateHome { it.copy(splashSpinRecord = !it.splashSpinRecord) } },
-        )
+        // 2. 可像小组件一样自由拖动位置与调整大小的图2 Night Drive 黑胶播放器
+        val playerOffsetX = (homeSetting.splashPlayerXFraction * parentWidthPx).roundToInt()
+        val playerOffsetY = (homeSetting.splashPlayerYFraction * parentHeightPx).roundToInt()
+
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(playerOffsetX, playerOffsetY) }
+                .graphicsLayer {
+                    scaleX = homeSetting.splashPlayerScale
+                    scaleY = homeSetting.splashPlayerScale
+                }
+                .then(
+                    if (isPlayerSelected) {
+                        Modifier.border(
+                            width = 2.dp,
+                            color = palette.primary,
+                            shape = RoundedCornerShape(28.dp),
+                        )
+                    } else Modifier
+                )
+                .pointerInput(parentWidthPx, parentHeightPx, homeSetting.splashPlayerScale) {
+                    detectDragGestures(
+                        onDragStart = { selectedItemId = "__PLAYER__" },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            if (parentWidthPx > 0f && parentHeightPx > 0f) {
+                                val dx = (dragAmount.x * homeSetting.splashPlayerScale) / parentWidthPx
+                                val dy = (dragAmount.y * homeSetting.splashPlayerScale) / parentHeightPx
+                                updateHome { old ->
+                                    old.copy(
+                                        splashPlayerXFraction = (old.splashPlayerXFraction + dx).coerceIn(-0.45f, 0.45f),
+                                        splashPlayerYFraction = (old.splashPlayerYFraction + dy).coerceIn(-0.42f, 0.42f),
+                                    )
+                                }
+                            }
+                        }
+                    )
+                }
+                .clickable { selectedItemId = "__PLAYER__" },
+            contentAlignment = Alignment.Center,
+        ) {
+            KittenNightDriveVinylCard(
+                homeSetting = homeSetting,
+                palette = palette,
+                onPickCenterImage = { centerImageLauncher.launch("image/*") },
+                onEditSongInfo = { showSongDialog = true },
+                onToggleSpin = { updateHome { it.copy(splashSpinRecord = !it.splashSpinRecord) } },
+            )
+        }
 
         // 3. 播放器上方的 DIY 元素
         homeSetting.splashDiyItems.filter { it.abovePlayer }.forEach { item ->
@@ -522,7 +607,7 @@ fun SplashDiyFullEditorModal(
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                         color = palette.textPrimary,
                     )
-                    KittenPalettes.forEach { p ->
+                    me.rerere.rikkahub.ui.theme.allKittenPalettes().forEach { p ->
                         val sel = p.id == palette.id
                         Box(
                             modifier = Modifier
@@ -556,9 +641,56 @@ fun SplashDiyFullEditorModal(
         ) {
             Column(
                 modifier = Modifier.padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // 如果选中了某个元素，显示缩放/旋转/前后层级/删除控制条
+                // 如果选中了黑胶播放器小组件，显示播放器专属的大小缩放滑块与一键归位控制条
+                if (isPlayerSelected) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "已选中：黑胶播放器（可手指直接拖动位置）",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = palette.primary,
+                        )
+                        TextButton(
+                            onClick = {
+                                updateHome {
+                                    it.copy(
+                                        splashPlayerXFraction = 0f,
+                                        splashPlayerYFraction = 0f,
+                                        splashPlayerScale = 1.0f,
+                                    )
+                                }
+                            }
+                        ) {
+                            Text("归位重置", color = palette.primary)
+                        }
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text("唱机大小", style = MaterialTheme.typography.labelSmall)
+                        Slider(
+                            value = homeSetting.splashPlayerScale,
+                            onValueChange = { v ->
+                                updateHome { it.copy(splashPlayerScale = v.coerceIn(0.45f, 1.35f)) }
+                            },
+                            valueRange = 0.45f..1.35f,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = "${(homeSetting.splashPlayerScale * 100).roundToInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = palette.textSecondary,
+                        )
+                    }
+                }
+
+                // 如果选中了某个贴纸/文字元素，显示缩放/旋转/前后层级/删除控制条
                 if (selectedItem != null) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -566,7 +698,7 @@ fun SplashDiyFullEditorModal(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = "已选中元素（手指直接拖动位置）",
+                            text = "已选中贴纸（手指直接拖动位置）",
                             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                             color = palette.primary,
                         )
@@ -589,7 +721,7 @@ fun SplashDiyFullEditorModal(
                                     updateHome { old ->
                                         old.copy(splashDiyItems = old.splashDiyItems.filterNot { it.id == selectedItem.id })
                                     }
-                                    selectedItemId = null
+                                    selectedItemId = "__PLAYER__"
                                 }
                             ) {
                                 Text("删除", color = MaterialTheme.colorScheme.error)
@@ -633,7 +765,43 @@ fun SplashDiyFullEditorModal(
                     }
                 }
 
-                // 快捷添加按钮栏
+                // 第一排：设置开屏背景图 + 调整唱机小组件 + 换唱机圆图与歌名
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilterChip(
+                        selected = homeSetting.splashBackgroundPath.isNotBlank(),
+                        onClick = { bgImageLauncher.launch("image/*") },
+                        label = { Text(if (homeSetting.splashBackgroundPath.isNotBlank()) "更换背景图" else "+ 设置背景图") },
+                    )
+                    if (homeSetting.splashBackgroundPath.isNotBlank()) {
+                        FilterChip(
+                            selected = false,
+                            onClick = { updateHome { it.copy(splashBackgroundPath = "") } },
+                            label = { Text("恢复网格底") },
+                        )
+                    }
+                    FilterChip(
+                        selected = isPlayerSelected,
+                        onClick = { selectedItemId = "__PLAYER__" },
+                        label = { Text("调整播放器") },
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = { centerImageLauncher.launch("image/*") },
+                        label = { Text("换唱机圆图") },
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = { showSongDialog = true },
+                        label = { Text("改歌名") },
+                    )
+                }
+
+                // 第二排：添加手帐贴纸与文字
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -648,22 +816,12 @@ fun SplashDiyFullEditorModal(
                     FilterChip(
                         selected = false,
                         onClick = { diyImageLauncher.launch("image/*") },
-                        label = { Text("+ 相册图片") },
+                        label = { Text("+ 相册贴纸") },
                     )
                     FilterChip(
                         selected = false,
                         onClick = { showAddTextDialog = true },
                         label = { Text("+ 手帐文字") },
-                    )
-                    FilterChip(
-                        selected = false,
-                        onClick = { centerImageLauncher.launch("image/*") },
-                        label = { Text("换唱机圆图") },
-                    )
-                    FilterChip(
-                        selected = false,
-                        onClick = { showSongDialog = true },
-                        label = { Text("改歌名") },
                     )
                 }
             }

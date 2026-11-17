@@ -5,16 +5,104 @@ import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.OurHomeSetting
+import kotlin.math.roundToInt
+
+// 响应式全局自定义主题色状态（与 OurHomeSetting 实时同步，让任意页面调用 findKittenPalette("custom") 都能即时响应变色）
+var ActiveCustomPrimaryHex by mutableStateOf("#F29CB8")
+var ActiveCustomSecondaryHex by mutableStateOf("#7E7894")
+var ActiveCustomBackgroundHex by mutableStateOf("#FDF9FA")
+
+fun syncCustomKittenPaletteState(home: OurHomeSetting) {
+    if (ActiveCustomPrimaryHex != home.customPrimaryHex) {
+        ActiveCustomPrimaryHex = home.customPrimaryHex
+    }
+    if (ActiveCustomSecondaryHex != home.customSecondaryHex) {
+        ActiveCustomSecondaryHex = home.customSecondaryHex
+    }
+    if (ActiveCustomBackgroundHex != home.customBackgroundHex) {
+        ActiveCustomBackgroundHex = home.customBackgroundHex
+    }
+}
+
+fun parseKittenHexColor(hex: String, fallback: Color): Color {
+    val cleaned = hex.trim().removePrefix("#")
+    if (cleaned.length != 6 && cleaned.length != 8) return fallback
+    return runCatching {
+        val longVal = cleaned.toLong(16)
+        if (cleaned.length == 6) {
+            Color(
+                red = ((longVal shr 16) and 0xFF).toInt(),
+                green = ((longVal shr 8) and 0xFF).toInt(),
+                blue = (longVal and 0xFF).toInt(),
+                alpha = 0xFF,
+            )
+        } else {
+            Color(
+                alpha = ((longVal shr 24) and 0xFF).toInt(),
+                red = ((longVal shr 16) and 0xFF).toInt(),
+                green = ((longVal shr 8) and 0xFF).toInt(),
+                blue = (longVal and 0xFF).toInt(),
+            )
+        }
+    }.getOrDefault(fallback)
+}
+
+fun colorToKittenHex(color: Color): String {
+    val r = (color.red * 255).roundToInt().coerceIn(0, 255)
+    val g = (color.green * 255).roundToInt().coerceIn(0, 255)
+    val b = (color.blue * 255).roundToInt().coerceIn(0, 255)
+    return String.format("#%02X%02X%02X", r, g, b)
+}
+
+fun buildCustomKittenPalette(
+    primaryHex: String = ActiveCustomPrimaryHex,
+    secondaryHex: String = ActiveCustomSecondaryHex,
+    backgroundHex: String = ActiveCustomBackgroundHex,
+): KittenPaletteSpec {
+    val primary = parseKittenHexColor(primaryHex, Color(0xFFF29CB8))
+    val secondary = parseKittenHexColor(secondaryHex, Color(0xFF7E7894))
+    val background = parseKittenHexColor(backgroundHex, Color(0xFFFDF9FA))
+    val accent = lerp(primary, Color.White, 0.32f)
+    val softContainer = lerp(primary, background, 0.80f)
+    val secondaryContainer = lerp(secondary, Color.White, 0.78f)
+    val gridLineColor = lerp(primary, background, 0.78f)
+    val textPrimary = lerp(secondary, Color(0xFF231F26), 0.62f)
+    val textSecondary = lerp(secondary, Color(0xFF6B6573), 0.35f)
+    return KittenPaletteSpec(
+        id = "custom",
+        title = "✦ 自定义",
+        subtitle = "Custom Dopamine Palette",
+        primary = primary,
+        secondary = secondary,
+        accent = accent,
+        background = background,
+        cardSurface = Color.White,
+        softContainer = softContainer,
+        secondaryContainer = secondaryContainer,
+        gridLineColor = gridLineColor,
+        textPrimary = textPrimary,
+        textSecondary = textSecondary,
+        plushRes = R.drawable.kitten_plush_pink,
+        defaultCoverRes = R.drawable.kitten_cover_lovers,
+    )
+}
+
+fun allKittenPalettes(): List<KittenPaletteSpec> = KittenPalettes + buildCustomKittenPalette()
 
 data class KittenPaletteSpec(
     val id: String,
@@ -124,6 +212,7 @@ val KittenPalettes = listOf(
 )
 
 fun findKittenPalette(id: String): KittenPaletteSpec {
+    if (id == "custom") return buildCustomKittenPalette()
     return KittenPalettes.find { it.id == id } ?: KittenPalettes.first()
 }
 
@@ -217,7 +306,8 @@ fun rememberKittenAssetColorFilter(
     paletteId: String,
     enabled: Boolean = true,
 ): ColorFilter? {
-    return remember(paletteId, enabled) {
+    val palette = findKittenPalette(paletteId)
+    return remember(paletteId, palette.primary, palette.secondary, enabled) {
         if (!enabled || paletteId == "pink_grey") {
             null
         } else {
@@ -255,6 +345,19 @@ fun rememberKittenAssetColorFilter(
                     0.65f, -0.65f, 1f, 0f, 0f,
                     0f, 0f, 0f, 1f, 0f
                 )
+                "custom" -> {
+                    // 动态将原图草莓粉 (R≈0.90, G≈0.60, B≈0.72, R-G≈0.30) 映射到绵绵自定义的主色调 Primary，
+                    // 同时严格保持每行系数和为 1.0f，确保白色 (1,1,1) 与灰黑中性色 100% 纯净不偏色！
+                    val a = ((palette.primary.red - 0.90f) / 0.30f).coerceIn(-1.15f, 1.15f)
+                    val b = ((palette.primary.green - 0.60f) / 0.30f).coerceIn(-1.15f, 1.15f)
+                    val c = ((palette.primary.blue - 0.72f) / 0.30f).coerceIn(-1.15f, 1.15f)
+                    floatArrayOf(
+                        1f + a, -a,     0f, 0f, 0f,
+                        b,      1f - b, 0f, 0f, 0f,
+                        c,      -c,     1f, 0f, 0f,
+                        0f,     0f,     0f, 1f, 0f
+                    )
+                }
                 else -> null
             }
             matrix?.let { ColorFilter.colorMatrix(ColorMatrix(it)) }
@@ -271,7 +374,8 @@ fun rememberKittenBlueAssetColorFilter(
     paletteId: String,
     enabled: Boolean = true,
 ): ColorFilter? {
-    return remember(paletteId, enabled) {
+    val palette = findKittenPalette(paletteId)
+    return remember(paletteId, palette.primary, palette.secondary, enabled) {
         if (!enabled) {
             null
         } else {
@@ -315,6 +419,17 @@ fun rememberKittenBlueAssetColorFilter(
                     -0.12f, 0f, 1.12f, 0f, 0f,
                     0f, 0f, 0f, 1f, 0f
                 )
+                "custom" -> {
+                    val a = ((palette.primary.red - 0.62f) / 0.25f).coerceIn(-1.25f, 1.25f)
+                    val b = ((palette.primary.green - 0.68f) / 0.25f).coerceIn(-1.25f, 1.25f)
+                    val c = ((palette.primary.blue - 0.87f) / 0.25f).coerceIn(-1.25f, 1.25f)
+                    floatArrayOf(
+                        1f - a, 0f, a,      0f, 0f,
+                        -b,     1f, b,      0f, 0f,
+                        -c,     0f, 1f + c, 0f, 0f,
+                        0f,     0f, 0f,     1f, 0f
+                    )
+                }
                 else -> null
             }
             matrix?.let { ColorFilter.colorMatrix(ColorMatrix(it)) }

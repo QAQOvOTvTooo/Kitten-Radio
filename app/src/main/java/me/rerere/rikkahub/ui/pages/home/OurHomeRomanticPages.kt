@@ -470,8 +470,8 @@ fun PartnerPhonePage() {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(18.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                            .padding(horizontal = 14.dp, vertical = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         // 手机顶部灵动岛与状态栏
                         Row(
@@ -494,29 +494,49 @@ fun PartnerPhonePage() {
                             )
                         }
 
-                        // 手机桌面置顶情侣小组件
+                        // 手机桌面置顶情侣小组件（点击右上角或菜单均可触发生成，生成时在此显示同步进度）
                         Surface(
-                            shape = RoundedCornerShape(22.dp),
+                            shape = RoundedCornerShape(20.dp),
                             color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.82f),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Column(
-                                modifier = Modifier.padding(14.dp),
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                                 verticalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
                                     Text(
                                         text = "${partnerName}的私人手机",
                                         style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                     )
-                                    Text(
-                                        text = phoneData.updatedAt,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                                    )
+                                    if (isGenerating) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(12.dp),
+                                                strokeWidth = 1.8.dp,
+                                                color = MaterialTheme.colorScheme.primary,
+                                            )
+                                            Text(
+                                                text = "正在同步手机...",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary,
+                                            )
+                                        }
+                                    } else {
+                                        Text(
+                                            text = phoneData.updatedAt,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                            modifier = Modifier.clickable { inspectPhoneViaApi() },
+                                        )
+                                    }
                                 }
                                 Text(
                                     text = phoneData.statusNote,
@@ -525,19 +545,27 @@ fun PartnerPhonePage() {
                             }
                         }
 
-                        // 如果点开了某个内置 App，展示 App 内部页面；否则展示图4同款波浪蝴蝶结16宫格桌面
+                        // 如果点开了某个内置 App，展示 App 内部页面；否则展示沉浸式全尺寸猫咪6宫格桌面
                         if (selectedApp == null) {
                             val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(settings.ourHomeSetting.kittenPaletteId)
                             val assetColorFilter = me.rerere.rikkahub.ui.theme.rememberKittenAssetColorFilter(
                                 paletteId = palette.id,
                                 enabled = settings.ourHomeSetting.enableAssetTint,
                             )
-                            val gridRoutes = remember {
+                            val desktopApps = remember {
                                 listOf(
-                                    listOf(PhoneAppTab.MEMO, PhoneAppTab.XIAOHONGSHU, PhoneAppTab.XIAOHONGSHU, PhoneAppTab.MEMO),
-                                    listOf(PhoneAppTab.MUSIC, PhoneAppTab.MEMO, PhoneAppTab.MEMO, PhoneAppTab.SEARCH),
-                                    listOf(PhoneAppTab.MEMO, PhoneAppTab.MEMO, PhoneAppTab.MEMO, PhoneAppTab.MEMO),
-                                    listOf(PhoneAppTab.SHOPPING, PhoneAppTab.SEARCH, PhoneAppTab.MEITUAN, PhoneAppTab.MEITUAN),
+                                    listOf(
+                                        Triple(PhoneAppTab.XIAOHONGSHU, "小红书", me.rerere.rikkahub.R.drawable.kitten_phone_icon_xhs),
+                                        Triple(PhoneAppTab.MUSIC, "音乐软件", me.rerere.rikkahub.R.drawable.kitten_phone_icon_music),
+                                    ),
+                                    listOf(
+                                        Triple(PhoneAppTab.SHOPPING, "购物软件", me.rerere.rikkahub.R.drawable.kitten_phone_icon_shop),
+                                        Triple(PhoneAppTab.MEITUAN, "美团外卖", me.rerere.rikkahub.R.drawable.kitten_phone_icon_meituan),
+                                    ),
+                                    listOf(
+                                        Triple(PhoneAppTab.MEMO, "备忘录", me.rerere.rikkahub.R.drawable.kitten_phone_icon_memo),
+                                        Triple(PhoneAppTab.SEARCH, "浏览器", me.rerere.rikkahub.R.drawable.kitten_phone_icon_browser),
+                                    ),
                                 )
                             }
                             Column(
@@ -550,8 +578,11 @@ fun PartnerPhonePage() {
                                 androidx.compose.foundation.layout.BoxWithConstraints(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .aspectRatio(1890f / 2825f)
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(24.dp))
                                 ) {
+                                    val iconSize = (maxWidth * 0.25f).coerceIn(66.dp, 88.dp)
+
                                     Image(
                                         painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_partner_phone_desktop),
                                         contentDescription = "${partnerName}的手机桌面",
@@ -565,27 +596,49 @@ fun PartnerPhonePage() {
                                             .fillMaxSize()
                                             .padding(
                                                 top = maxHeight * 0.12f,
-                                                bottom = maxHeight * 0.10f,
-                                                start = maxWidth * 0.05f,
-                                                end = maxWidth * 0.05f,
+                                                bottom = maxHeight * 0.09f,
+                                                start = maxWidth * 0.08f,
+                                                end = maxWidth * 0.08f,
                                             ),
                                         verticalArrangement = Arrangement.SpaceEvenly,
                                     ) {
-                                        gridRoutes.forEach { rowApps ->
+                                        desktopApps.forEach { rowItems ->
                                             Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .weight(1f),
+                                                modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.SpaceEvenly,
+                                                verticalAlignment = Alignment.CenterVertically,
                                             ) {
-                                                rowApps.forEach { targetApp ->
-                                                    Box(
+                                                rowItems.forEach { (targetApp, appLabel, iconResId) ->
+                                                    Column(
+                                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                                        verticalArrangement = Arrangement.spacedBy(6.dp),
                                                         modifier = Modifier
-                                                            .weight(1f)
-                                                            .fillMaxHeight()
-                                                            .clip(RoundedCornerShape(16.dp))
+                                                            .clip(RoundedCornerShape(18.dp))
                                                             .clickable { selectedApp = targetApp }
-                                                    )
+                                                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                                                    ) {
+                                                        Surface(
+                                                            shape = RoundedCornerShape(22.dp),
+                                                            shadowElevation = 3.dp,
+                                                            border = BorderStroke(1.dp, Color.Black.copy(alpha = 0.06f)),
+                                                            modifier = Modifier.size(iconSize),
+                                                        ) {
+                                                            Image(
+                                                                painter = androidx.compose.ui.res.painterResource(id = iconResId),
+                                                                contentDescription = appLabel,
+                                                                contentScale = ContentScale.Crop,
+                                                                modifier = Modifier.fillMaxSize(),
+                                                            )
+                                                        }
+                                                        Text(
+                                                            text = appLabel,
+                                                            style = MaterialTheme.typography.labelMedium.copy(
+                                                                fontWeight = FontWeight.Bold,
+                                                            ),
+                                                            color = palette.textPrimary,
+                                                            maxLines = 1,
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -599,16 +652,17 @@ fun PartnerPhonePage() {
                                             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
                                         ),
                                     ) {
-                                        Column(modifier = Modifier.padding(12.dp)) {
+                                        Column(modifier = Modifier.padding(10.dp)) {
                                             Text(
                                                 text = "正在同步${partnerName}的手机数据...",
                                                 style = MaterialTheme.typography.labelMedium,
                                                 color = MaterialTheme.colorScheme.primary,
                                             )
-                                            Spacer(Modifier.height(4.dp))
+                                            Spacer(Modifier.height(2.dp))
                                             Text(
-                                                text = rawStreamPreview.takeLast(240),
+                                                text = rawStreamPreview.takeLast(160),
                                                 style = MaterialTheme.typography.bodySmall,
+                                                maxLines = 2,
                                             )
                                         }
                                     }
@@ -640,28 +694,6 @@ fun PartnerPhonePage() {
                                 onBackToDesktop = { selectedApp = null },
                                 onShowToast = { msg -> toaster.show(msg, type = ToastType.Success) },
                             )
-                        }
-
-                        // 底部 Dock 栏：内置“查手机”按钮（调用API生成手机内容）
-                        Button(
-                            onClick = { inspectPhoneViaApi() },
-                            enabled = !isGenerating,
-                            shape = RoundedCornerShape(50),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            if (isGenerating) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text("正在突击检查${partnerName}的手机...")
-                            } else {
-                                Icon(HugeIcons.SmartPhone01, null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("查手机（结合记忆与当前窗口生成）")
-                            }
                         }
                     }
                 }
@@ -717,13 +749,23 @@ private fun PartnerPhoneInteriorAppView(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Icon(
-                            currentApp.icon,
+                        val appIconRes = when (currentApp) {
+                            PhoneAppTab.XIAOHONGSHU -> me.rerere.rikkahub.R.drawable.kitten_phone_icon_xhs
+                            PhoneAppTab.MUSIC -> me.rerere.rikkahub.R.drawable.kitten_phone_icon_music
+                            PhoneAppTab.SHOPPING -> me.rerere.rikkahub.R.drawable.kitten_phone_icon_shop
+                            PhoneAppTab.MEITUAN -> me.rerere.rikkahub.R.drawable.kitten_phone_icon_meituan
+                            PhoneAppTab.MEMO -> me.rerere.rikkahub.R.drawable.kitten_phone_icon_memo
+                            PhoneAppTab.SEARCH -> me.rerere.rikkahub.R.drawable.kitten_phone_icon_browser
+                        }
+                        Image(
+                            painter = androidx.compose.ui.res.painterResource(id = appIconRes),
                             contentDescription = null,
-                            tint = palette.primary,
-                            modifier = Modifier.size(18.dp),
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(RoundedCornerShape(7.dp)),
                         )
                         Text(
                             text = "${partnerName}的${currentApp.title} ♡",
@@ -1646,16 +1688,96 @@ fun PartnerDiaryPage() {
         )
     }
 
-    // 是否合上封面展示绵绵专属竖版手帐封面
+    // 是否合上封面展示绵绵专属全屏 Meow 线圈手帐封面
     var isCoverClosed by remember { mutableStateOf(true) }
     var currentPageIdx by remember { mutableStateOf(0) }
     var isGenerating by remember { mutableStateOf(false) }
     var streamingText by remember { mutableStateOf("") }
     var showCommentDialog by remember { mutableStateOf(false) }
     var editingCommentText by remember { mutableStateOf("") }
+    // 过往日记预览弹窗开关
+    var showHistoryPreviewDialog by remember { mutableStateOf(false) }
+    // 内页信纸款式：0=三款信纸交替，1=四叶草横线纸，2=五线谱小猫纸，3=围巾猫空白纸
+    var paperStyleMode by remember { mutableStateOf(prefs.getInt("diary_paper_style_mode", 0)) }
+    val paperStyleLabel = when (paperStyleMode) {
+        1 -> "四叶草横线"
+        2 -> "五线谱音符"
+        3 -> "围巾猫空白"
+        else -> "三款交替"
+    }
 
     val safeIdx = currentPageIdx.coerceIn(0, (diaries.size - 1).coerceAtLeast(0))
     val currentEntry = diaries.getOrNull(safeIdx)
+
+    // 将每篇日记按舒适单页字数智能切分为多张全屏信纸页，支持左右滑动连续翻页
+    data class DiaryFlatPage(
+        val entryIndex: Int,
+        val entry: DiaryEntryItem,
+        val pageInEntry: Int,
+        val totalPagesInEntry: Int,
+        val pageText: String,
+    )
+
+    val flatPages = remember(diaries) {
+        buildList {
+            diaries.forEachIndexed { idx, entry ->
+                val raw = entry.content.trim().ifBlank { "（这页手帐还空着，等今晚落笔……）" }
+                val paragraphs = raw.split("\n").filter { it.isNotBlank() }
+                val chunks = mutableListOf<String>()
+                var currentChunk = StringBuilder()
+                for (para in paragraphs) {
+                    if (currentChunk.length + para.length + 1 > 230 && currentChunk.isNotEmpty()) {
+                        chunks.add(currentChunk.toString().trim())
+                        currentChunk = StringBuilder()
+                    }
+                    if (para.length > 250) {
+                        var start = 0
+                        while (start < para.length) {
+                            val end = (start + 230).coerceAtMost(para.length)
+                            val sub = para.substring(start, end)
+                            if (currentChunk.length + sub.length > 230 && currentChunk.isNotEmpty()) {
+                                chunks.add(currentChunk.toString().trim())
+                                currentChunk = StringBuilder()
+                            }
+                            currentChunk.append(sub)
+                            start = end
+                        }
+                        currentChunk.append("\n\n")
+                    } else {
+                        currentChunk.append(para).append("\n\n")
+                    }
+                }
+                if (currentChunk.isNotBlank()) {
+                    chunks.add(currentChunk.toString().trim())
+                }
+                if (chunks.isEmpty()) chunks.add(raw)
+                chunks.forEachIndexed { pIdx, textChunk ->
+                    add(
+                        DiaryFlatPage(
+                            entryIndex = idx,
+                            entry = entry,
+                            pageInEntry = pIdx + 1,
+                            totalPagesInEntry = chunks.size,
+                            pageText = textChunk,
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(
+        initialPage = 0,
+        pageCount = { flatPages.size.coerceAtLeast(1) },
+    )
+
+    LaunchedEffect(pagerState.currentPage, flatPages.size) {
+        flatPages.getOrNull(pagerState.currentPage)?.let { fp ->
+            if (currentPageIdx != fp.entryIndex) {
+                currentPageIdx = fp.entryIndex
+            }
+        }
+    }
 
     fun saveDiaries(newList: List<DiaryEntryItem>) {
         diaries = newList
@@ -1696,6 +1818,7 @@ fun PartnerDiaryPage() {
                     )
                     saveDiaries(listOf(newEntry) + diaries)
                     currentPageIdx = 0
+                    pagerState.scrollToPage(0)
                     toaster.show("${partnerName}写好今天的日记啦 ♡", type = ToastType.Success)
                 }
             }.onFailure { err ->
@@ -1706,9 +1829,16 @@ fun PartnerDiaryPage() {
         }
     }
 
-    val activeAccent = if (useOriginalAngelBlue) Color(0xFF7B93B2) else palette.primary
-    val activeSoftBg = if (useOriginalAngelBlue) Color(0xFFEEF3F9) else palette.softContainer
-    val activeTextPrimary = if (useOriginalAngelBlue) Color(0xFF3E4B5B) else palette.textPrimary
+    val activeAccent = palette.primary
+    val activeSoftBg = palette.softContainer
+    val activeTextPrimary = palette.textPrimary
+
+    // 封面 3D 翻开旋转动画（绕左侧线圈书脊旋转展开）
+    val coverFlipRotation by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isCoverClosed) 0f else -95f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 420),
+        label = "coverFlipRotation",
+    )
 
     Scaffold(
         topBar = {
@@ -1718,24 +1848,32 @@ fun PartnerDiaryPage() {
                 menuActions = buildList {
                     add(
                         OurHomeTopMenuAction(
-                            label = if (isGenerating) "✍️ 落笔中..." else "✍️ 写今日日记（AI落笔）",
+                            label = if (isCoverClosed) "📖 翻开日记内页" else "📕 回到日记封面",
+                            onClick = { isCoverClosed = !isCoverClosed },
+                        )
+                    )
+                    add(
+                        OurHomeTopMenuAction(
+                            label = if (isGenerating) "✍️ 落笔中..." else "✍️ 生成今日新日记",
                             onClick = { if (!isGenerating) generateTodayDiary() },
                         )
                     )
                     add(
                         OurHomeTopMenuAction(
-                            label = "🎨 切换日记配色",
-                            badge = if (useOriginalAngelBlue) "当前:天使蓝" else "当前:随主题",
-                            onClick = {
-                                useOriginalAngelBlue = !useOriginalAngelBlue
-                                prefs.edit().putBoolean("diary_use_angel_blue", useOriginalAngelBlue).apply()
-                            },
+                            label = "🗂️ 过往日记预览",
+                            badge = "共 ${diaries.size} 篇",
+                            onClick = { showHistoryPreviewDialog = true },
                         )
                     )
                     add(
                         OurHomeTopMenuAction(
-                            label = if (isCoverClosed) "📖 解开蝴蝶结翻开日记" else "📕 合上日记本封面",
-                            onClick = { isCoverClosed = !isCoverClosed },
+                            label = "📄 切换内页信纸",
+                            badge = paperStyleLabel,
+                            onClick = {
+                                val next = (paperStyleMode + 1) % 4
+                                paperStyleMode = next
+                                prefs.edit().putInt("diary_paper_style_mode", next).apply()
+                            },
                         )
                     )
                 },
@@ -1745,274 +1883,142 @@ fun PartnerDiaryPage() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding),
+                .padding(innerPadding)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
         ) {
-            if (isCoverClosed) {
+            if (isCoverClosed || coverFlipRotation > -85f) {
                 // ================================================================
-                // 模式 A：合上的精装手帐本封面 (kitten_diary_cover · 小木屋+蝴蝶结猫猫+小兔)
+                // 模式 A：全屏铺满的 Meow 音符猫咪线圈本封面（点击触发 3D 翻开效果）
                 // ================================================================
-                Column(
+                Surface(
+                    shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp, topEnd = 28.dp, bottomEnd = 28.dp),
+                    shadowElevation = 10.dp,
+                    border = BorderStroke(2.dp, Color.White.copy(alpha = 0.85f)),
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 22.dp, vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
+                        .graphicsLayer {
+                            transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
+                            rotationY = coverFlipRotation
+                            cameraDistance = 18f * density
+                            alpha = ((95f + coverFlipRotation) / 95f).coerceIn(0f, 1f)
+                        }
+                        .clickable { isCoverClosed = false },
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(topStart = 14.dp, bottomStart = 14.dp, topEnd = 30.dp, bottomEnd = 30.dp),
-                        shadowElevation = 12.dp,
-                        border = BorderStroke(3.dp, Color.White.copy(alpha = 0.85f)),
-                        modifier = Modifier
-                            .weight(1f, fill = false)
-                            .fillMaxWidth(0.94f)
-                            .aspectRatio(1067f / 1474f)
-                            .clickable { isCoverClosed = false },
-                    ) {
-                        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                            Image(
-                                painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_diary_cover),
-                                contentDescription = "${partnerName}的手帐日记本封面",
-                                colorFilter = diaryColorFilter,
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier.fillMaxSize(),
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Image(
+                            painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_diary_cover_meow),
+                            contentDescription = "${partnerName}的手帐日记本封面",
+                            contentScale = ContentScale.FillBounds,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+
+                        // 底部轻巧透明胶囊提示，不遮挡封面中央的 Meow 与猫咪音符原画
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = Color.White.copy(alpha = 0.88f),
+                            border = BorderStroke(1.2.dp, activeAccent.copy(alpha = 0.6f)),
+                            shadowElevation = 3.dp,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 22.dp)
+                                .clickable { isCoverClosed = false },
+                        ) {
+                            Text(
+                                text = "🎀 轻触翻开${partnerName}的日记 · 已藏 ${diaries.size} 篇 🎀",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                color = activeTextPrimary,
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 7.dp),
                             )
-
-                            // 封面上半部小木屋云朵下方的手帐铭牌贴纸
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = Color.White.copy(alpha = 0.86f),
-                                border = BorderStroke(1.5.dp, activeAccent.copy(alpha = 0.5f)),
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .padding(top = maxHeight * 0.17f)
-                                    .width(maxWidth * 0.72f),
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                                ) {
-                                    Text(
-                                        text = "✦ ${partnerName}的私密手帐 ✦",
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
-                                        color = activeTextPrimary,
-                                    )
-                                    Text(
-                                        text = "小猫${userNickname}与小木屋专属 · 已收录 ${diaries.size} 篇",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = activeAccent,
-                                    )
-                                }
-                            }
-
-                            // 封面底部蕾丝边上方的翻开按钮
-                            Surface(
-                                shape = RoundedCornerShape(50),
-                                color = Color.White.copy(alpha = 0.92f),
-                                border = BorderStroke(1.5.dp, activeAccent),
-                                shadowElevation = 4.dp,
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .padding(bottom = maxHeight * 0.11f)
-                                    .clickable { isCoverClosed = false },
-                            ) {
-                                Text(
-                                    text = "🎀 解开蝴蝶结 · 翻开日记内页 🎀",
-                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                                    color = activeTextPrimary,
-                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                                )
-                            }
                         }
                     }
                 }
             } else {
                 // ================================================================
-                // 模式 B：翻开的双页活页线圈内页 (kitten_diary_spread + 单页大字精读区)
+                // 模式 B：单张内页铺满屏幕（支持左右滑动翻页 + 三款猫咪信纸交替/切换）
                 // ================================================================
-                LazyColumn(
+                androidx.compose.foundation.pager.HorizontalPager(
+                    state = pagerState,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    if (isGenerating && streamingText.isNotBlank()) {
-                        item {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(24.dp),
-                                color = activeSoftBg.copy(alpha = 0.9f),
-                                border = BorderStroke(1.5.dp, activeAccent.copy(alpha = 0.45f)),
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    Text(
-                                        text = "🖋️ ${partnerName}正趴在コイル手帐本上写日记...",
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = activeAccent,
-                                    )
-                                    MarkdownBlock(content = streamingText)
-                                }
-                            }
+                ) { pageIndex ->
+                    val pageData = flatPages.getOrNull(pageIndex)
+                    val entry = pageData?.entry ?: currentEntry
+                    val effectivePaperRes = when (paperStyleMode) {
+                        1 -> me.rerere.rikkahub.R.drawable.kitten_diary_page_lined
+                        2 -> me.rerere.rikkahub.R.drawable.kitten_diary_page_music
+                        3 -> me.rerere.rikkahub.R.drawable.kitten_diary_page_blank
+                        else -> when (pageIndex % 3) {
+                            0 -> me.rerere.rikkahub.R.drawable.kitten_diary_page_lined
+                            1 -> me.rerere.rikkahub.R.drawable.kitten_diary_page_music
+                            else -> me.rerere.rikkahub.R.drawable.kitten_diary_page_blank
                         }
                     }
 
-                    // 1. 顶部全景摊开的双页线圈手帐本 (kitten_diary_spread)
-                    item {
-                        BoxWithConstraints(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .aspectRatio(1474f / 1067f)
-                                .clip(RoundedCornerShape(22.dp)),
-                        ) {
+                    Surface(
+                        shape = RoundedCornerShape(22.dp),
+                        shadowElevation = 6.dp,
+                        border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.9f)),
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                            // 全屏铺满的单页猫咪信纸
                             Image(
-                                painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_diary_spread),
-                                contentDescription = "双页线圈日记内页",
-                                colorFilter = diaryColorFilter,
+                                painter = androidx.compose.ui.res.painterResource(id = effectivePaperRes),
+                                contentDescription = "日记内页信纸",
                                 contentScale = ContentScale.FillBounds,
                                 modifier = Modifier.fillMaxSize(),
                             )
 
-                            if (currentEntry != null) {
-                                // 左页（小猫剪影水印页）：展示手帐篇目、日期、天气心情、老婆批注印章
-                                Column(
-                                    modifier = Modifier
-                                        .offset(x = maxWidth * 0.085f, y = maxHeight * 0.17f)
-                                        .width(maxWidth * 0.36f)
-                                        .height(maxHeight * 0.65f),
-                                    verticalArrangement = Arrangement.SpaceBetween,
-                                ) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Surface(
-                                            shape = RoundedCornerShape(50),
-                                            color = activeSoftBg.copy(alpha = 0.85f),
-                                        ) {
-                                            Text(
-                                                text = "NO.${diaries.size - safeIdx} · 专属手帐",
-                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.ExtraBold),
-                                                color = activeAccent,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                                            )
-                                        }
-                                        Text(
-                                            text = currentEntry.dateTitle,
-                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = activeTextPrimary,
-                                        )
-                                        Text(
-                                            text = currentEntry.mood,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = activeAccent,
-                                            maxLines = 3,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    }
-
-                                    // 左页底部：绵绵的小猫批注贴纸
-                                    Surface(
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = activeSoftBg.copy(alpha = 0.78f),
-                                        border = BorderStroke(0.8.dp, activeAccent.copy(alpha = 0.4f)),
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(
+                                        top = maxHeight * 0.125f,
+                                        bottom = maxHeight * 0.095f,
+                                        start = maxWidth * 0.08f,
+                                        end = maxWidth * 0.08f,
+                                    ),
+                                verticalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                if (isGenerating && pageIndex == 0) {
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clickable {
-                                                editingCommentText = currentEntry.wifeComment
-                                                showCommentDialog = true
-                                            },
-                                    ) {
-                                        Text(
-                                            text = currentEntry.wifeComment,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = activeTextPrimary,
-                                            maxLines = 2,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.padding(6.dp),
-                                        )
-                                    }
-                                }
-
-                                // 右页（小木屋剪影水印页）：展示日记手写正文预览（可滑动）
-                                Column(
-                                    modifier = Modifier
-                                        .offset(x = maxWidth * 0.545f, y = maxHeight * 0.17f)
-                                        .width(maxWidth * 0.36f)
-                                        .height(maxHeight * 0.65f)
-                                        .verticalScroll(rememberScrollState()),
-                                ) {
-                                    Text(
-                                        text = currentEntry.content,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = activeTextPrimary,
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // 2. 翻页与手帐互动工具条
-                    if (currentEntry != null) {
-                        item {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                FilledTonalButton(
-                                    onClick = { if (safeIdx < diaries.size - 1) currentPageIdx = safeIdx + 1 },
-                                    enabled = safeIdx < diaries.size - 1,
-                                    shape = RoundedCornerShape(50),
-                                ) {
-                                    Text("◁ 前一篇")
-                                }
-                                Surface(
-                                    shape = RoundedCornerShape(50),
-                                    color = activeSoftBg,
-                                    border = BorderStroke(1.dp, activeAccent.copy(alpha = 0.4f)),
-                                    modifier = Modifier.clickable {
-                                        editingCommentText = currentEntry.wifeComment
-                                        showCommentDialog = true
-                                    },
-                                ) {
-                                    Text(
-                                        text = "🐾 给老公写批注 / 盖章 (${safeIdx + 1}/${diaries.size})",
-                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                        color = activeTextPrimary,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    )
-                                }
-                                FilledTonalButton(
-                                    onClick = { if (safeIdx > 0) currentPageIdx = safeIdx - 1 },
-                                    enabled = safeIdx > 0,
-                                    shape = RoundedCornerShape(50),
-                                ) {
-                                    Text("后一篇 ▷")
-                                }
-                            }
-                        }
-
-                        // 3. 单页放大精读信纸（使用右页小木屋手帐内页底图 + 清晰大字正文）
-                        item {
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(24.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.5.dp, activeAccent.copy(alpha = 0.35f)),
-                                shadowElevation = 4.dp,
-                            ) {
-                                Box {
-                                    Image(
-                                        painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_diary_page_right),
-                                        contentDescription = null,
-                                        colorFilter = diaryColorFilter,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier
-                                            .matchParentSize()
-                                            .alpha(0.28f),
-                                    )
-                                    Column(
-                                        modifier = Modifier.padding(20.dp),
+                                            .weight(1f)
+                                            .verticalScroll(rememberScrollState()),
                                         verticalArrangement = Arrangement.spacedBy(10.dp),
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                strokeWidth = 2.dp,
+                                                color = activeAccent,
+                                            )
+                                            Text(
+                                                text = "🖋️ ${partnerName}正趴在手帐本上写日记...",
+                                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                                color = activeAccent,
+                                            )
+                                        }
+                                        if (streamingText.isNotBlank()) {
+                                            Text(
+                                                text = streamingText,
+                                                style = MaterialTheme.typography.bodyLarge.copy(
+                                                    lineHeight = 29.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                ),
+                                                color = Color(0xFF3E3A42),
+                                            )
+                                        }
+                                    }
+                                } else if (entry != null && pageData != null) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
@@ -2021,118 +2027,132 @@ fun PartnerDiaryPage() {
                                         ) {
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
-                                                    text = "📖 内页放大精读 · ${currentEntry.dateTitle}",
-                                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
-                                                    color = activeTextPrimary,
+                                                    text = entry.dateTitle,
+                                                    style = MaterialTheme.typography.titleMedium.copy(
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                    ),
+                                                    color = Color(0xFF3A353F),
                                                 )
                                                 Text(
-                                                    text = currentEntry.mood,
-                                                    style = MaterialTheme.typography.labelSmall,
+                                                    text = entry.mood,
+                                                    style = MaterialTheme.typography.labelMedium,
                                                     color = activeAccent,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
                                                 )
                                             }
-                                            IconButton(
-                                                onClick = {
-                                                    val updated = diaries.filterNot { it.id == currentEntry.id }
-                                                    saveDiaries(updated)
-                                                    if (currentPageIdx >= updated.size) {
-                                                        currentPageIdx = (updated.size - 1).coerceAtLeast(0)
-                                                    }
-                                                }
+                                            Surface(
+                                                shape = RoundedCornerShape(50),
+                                                color = activeSoftBg.copy(alpha = 0.85f),
                                             ) {
-                                                Icon(
-                                                    HugeIcons.Delete01,
-                                                    contentDescription = "撕下这页日记",
-                                                    tint = activeAccent,
-                                                    modifier = Modifier.size(18.dp),
+                                                Text(
+                                                    text = "第 ${pageData.pageInEntry}/${pageData.totalPagesInEntry} 页",
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                    color = activeAccent,
+                                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                                 )
                                             }
                                         }
-                                        HorizontalDivider(color = activeAccent.copy(alpha = 0.25f))
-                                        MarkdownBlock(content = currentEntry.content)
+
+                                        HorizontalDivider(
+                                            color = activeAccent.copy(alpha = 0.25f),
+                                            thickness = 1.dp,
+                                        )
+
+                                        // 信纸中央正文阅读区
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .weight(1f)
+                                                .verticalScroll(rememberScrollState()),
+                                        ) {
+                                            Text(
+                                                text = pageData.pageText,
+                                                style = MaterialTheme.typography.bodyLarge.copy(
+                                                    lineHeight = 30.sp,
+                                                    fontSize = 15.5.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                ),
+                                                color = Color(0xFF3A353F),
+                                            )
+                                        }
+                                    }
+
+                                    // 底部：绵绵批注贴纸 + 左右翻页轻触导航
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
                                         Surface(
-                                            shape = RoundedCornerShape(14.dp),
-                                            color = activeSoftBg.copy(alpha = 0.85f),
-                                            border = BorderStroke(1.dp, activeAccent.copy(alpha = 0.35f)),
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = Color.White.copy(alpha = 0.84f),
+                                            border = BorderStroke(1.dp, activeAccent.copy(alpha = 0.38f)),
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .clickable {
-                                                    editingCommentText = currentEntry.wifeComment
+                                                    editingCommentText = entry.wifeComment
                                                     showCommentDialog = true
                                                 },
                                         ) {
                                             Row(
-                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically,
                                             ) {
                                                 Text(
-                                                    text = "🎀 老婆批注：${currentEntry.wifeComment}",
-                                                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                                                    text = "🐾 ${entry.wifeComment}",
+                                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                                     color = activeTextPrimary,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
                                                     modifier = Modifier.weight(1f),
                                                 )
                                                 Text(
-                                                    text = "修改 ✎",
-                                                    style = MaterialTheme.typography.labelSmall,
+                                                    text = "✎ 批注",
+                                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                                     color = activeAccent,
                                                 )
                                             }
                                         }
-                                    }
-                                }
-                            }
-                        }
-                    }
 
-                    // 4. 历史日记目录抽屉（点击任意一篇直接翻到对应手帐页）
-                    if (diaries.size > 1) {
-                        item {
-                            Text(
-                                text = "✦ 往期手帐目录（点击翻至对应内页）",
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                                color = activeAccent,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
-                        }
-                        items(diaries.size) { idx ->
-                            val item = diaries[idx]
-                            val isSelected = idx == safeIdx
-                            Surface(
-                                shape = RoundedCornerShape(16.dp),
-                                color = if (isSelected) activeSoftBg else Color.White.copy(alpha = 0.85f),
-                                border = BorderStroke(
-                                    width = if (isSelected) 1.5.dp else 1.dp,
-                                    color = if (isSelected) activeAccent else activeAccent.copy(alpha = 0.2f),
-                                ),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { currentPageIdx = idx },
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = item.dateTitle,
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                            color = activeTextPrimary,
-                                        )
-                                        Text(
-                                            text = item.content,
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = activeTextPrimary.copy(alpha = 0.7f),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            Text(
+                                                text = if (pageIndex > 0) "◁ 上一页" else "◁ 合上封面",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                color = activeAccent,
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .clickable {
+                                                        if (pageIndex > 0) {
+                                                            scope.launch { pagerState.animateScrollToPage(pageIndex - 1) }
+                                                        } else {
+                                                            isCoverClosed = true
+                                                        }
+                                                    }
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                                            )
+                                            Text(
+                                                text = "左右滑动翻页 · 总 ${pageIndex + 1}/${flatPages.size} 页",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = Color(0xFF8A8290),
+                                            )
+                                            Text(
+                                                text = if (pageIndex < flatPages.size - 1) "下一页 ▷" else "已是末页",
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                                color = if (pageIndex < flatPages.size - 1) activeAccent else Color(0xFFB5AEB8),
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .clickable(enabled = pageIndex < flatPages.size - 1) {
+                                                        scope.launch { pagerState.animateScrollToPage(pageIndex + 1) }
+                                                    }
+                                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                                            )
+                                        }
                                     }
-                                    Text(
-                                        text = if (isSelected) "当前页 ♥" else "翻开 ▷",
-                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                        color = activeAccent,
-                                    )
                                 }
                             }
                         }
@@ -2140,6 +2160,98 @@ fun PartnerDiaryPage() {
                 }
             }
         }
+    }
+
+    // 右上角菜单触发的「过往日记预览」弹窗
+    if (showHistoryPreviewDialog) {
+        AlertDialog(
+            onDismissRequest = { showHistoryPreviewDialog = false },
+            title = {
+                Text(
+                    text = "🗂️ 过往日记预览（共 ${diaries.size} 篇）",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    diaries.forEachIndexed { idx, item ->
+                        val isSel = idx == safeIdx
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (isSel) activeSoftBg else MaterialTheme.colorScheme.surfaceContainerLow,
+                            border = if (isSel) BorderStroke(1.5.dp, activeAccent) else null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    currentPageIdx = idx
+                                    isCoverClosed = false
+                                    showHistoryPreviewDialog = false
+                                    val targetFlatIdx = flatPages.indexOfFirst { it.entryIndex == idx }.coerceAtLeast(0)
+                                    scope.launch { pagerState.scrollToPage(targetFlatIdx) }
+                                },
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = item.dateTitle,
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                        color = activeTextPrimary,
+                                    )
+                                    Text(
+                                        text = item.mood,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = activeAccent,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = item.content.replace("\n", " "),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color(0xFF6E6774),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                if (diaries.size > 1) {
+                                    IconButton(
+                                        onClick = {
+                                            val updated = diaries.filterIndexed { i, _ -> i != idx }
+                                            saveDiaries(updated)
+                                            if (currentPageIdx >= updated.size) {
+                                                currentPageIdx = (updated.size - 1).coerceAtLeast(0)
+                                            }
+                                        }
+                                    ) {
+                                        Icon(
+                                            HugeIcons.Delete01,
+                                            contentDescription = "撕下这页日记",
+                                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.75f),
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showHistoryPreviewDialog = false }) {
+                    Text("关闭")
+                }
+            },
+        )
     }
 
     if (showCommentDialog && currentEntry != null) {

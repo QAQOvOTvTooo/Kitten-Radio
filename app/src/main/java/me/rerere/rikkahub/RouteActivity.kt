@@ -347,6 +347,7 @@ class RouteActivity : ComponentActivity() {
     fun AppRoutes() {
         val toastState = rememberToasterState()
         val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
+        me.rerere.rikkahub.ui.theme.syncCustomKittenPaletteState(settings.ourHomeSetting)
         val scope = rememberCoroutineScope()
         val tts = rememberCustomTtsState()
         val asr = rememberCustomAsrState()
@@ -1251,43 +1252,20 @@ private fun OurHomeSplashOverlay(
         }
     }
 
-    val bgPath = homeSetting.splashBackgroundPath
-    val bgBitmap = remember(bgPath) {
-        if (bgPath.isNotBlank() && java.io.File(bgPath).exists()) {
-            android.graphics.BitmapFactory.decodeFile(bgPath)?.asImageBitmap()
-        } else null
-    }
-
     var showSongDialog by remember { mutableStateOf(false) }
 
     androidx.compose.foundation.layout.BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .let { mod ->
-                if (homeSetting.enableGridBackground) {
-                    mod.kittenGridBackground(
-                        backgroundColor = palette.background,
-                        gridColor = palette.gridLineColor,
-                        cellSize = 22.dp,
-                    )
-                } else {
-                    mod.background(palette.background)
-                }
-            },
+        modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
         val parentWidthPx = with(density) { maxWidth.toPx() }
         val parentHeightPx = with(density) { maxHeight.toPx() }
 
-        if (bgBitmap != null) {
-            androidx.compose.foundation.Image(
-                bitmap = bgBitmap,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                alpha = 0.42f,
-            )
-        }
+        // 0. 底层背景图或5色手帐网格（与 DIY 画布完全同步）
+        me.rerere.rikkahub.ui.pages.home.SplashCanvasBackground(
+            homeSetting = homeSetting,
+            palette = palette,
+        )
 
         // 1. 置于播放器下方的绵绵自定义 DIY 手帐元素
         homeSetting.splashDiyItems.filter { !it.abovePlayer }.forEach { item ->
@@ -1303,14 +1281,26 @@ private fun OurHomeSplashOverlay(
             }
         }
 
-        // 2. 居中的图2同款 Night Drive 黑胶播放器（圆心可换图+旋转，下方歌名可改）
-        me.rerere.rikkahub.ui.pages.home.KittenNightDriveVinylCard(
-            homeSetting = homeSetting,
-            palette = palette,
-            onPickCenterImage = { centerImageLauncher.launch("image/*") },
-            onEditSongInfo = { showSongDialog = true },
-            onToggleSpin = { updateHome { it.copy(splashSpinRecord = !it.splashSpinRecord) } },
-        )
+        // 2. 支持自定义位置与缩放大小的图2同款 Night Drive 黑胶播放器小组件（圆心可换图+旋转，下方歌名可改）
+        val playerOffsetX = (homeSetting.splashPlayerXFraction * parentWidthPx).toInt()
+        val playerOffsetY = (homeSetting.splashPlayerYFraction * parentHeightPx).toInt()
+        Box(
+            modifier = Modifier
+                .offset { androidx.compose.ui.unit.IntOffset(playerOffsetX, playerOffsetY) }
+                .graphicsLayer {
+                    scaleX = homeSetting.splashPlayerScale
+                    scaleY = homeSetting.splashPlayerScale
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            me.rerere.rikkahub.ui.pages.home.KittenNightDriveVinylCard(
+                homeSetting = homeSetting,
+                palette = palette,
+                onPickCenterImage = { centerImageLauncher.launch("image/*") },
+                onEditSongInfo = { showSongDialog = true },
+                onToggleSpin = { updateHome { it.copy(splashSpinRecord = !it.splashSpinRecord) } },
+            )
+        }
 
         // 3. 置于播放器上方的绵绵自定义 DIY 手帐元素
         homeSetting.splashDiyItems.filter { it.abovePlayer }.forEach { item ->
