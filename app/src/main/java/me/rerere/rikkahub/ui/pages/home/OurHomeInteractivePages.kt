@@ -91,6 +91,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -1788,7 +1789,7 @@ private fun FloatingOceanStarNode(
 }
 
 // ============================================================================
-// 6. 2D星露谷小家 · 自由DIY像素家具摆阵 & 双人像素换装衣帽间 (StardewHomePage)
+// 6. 2D星露谷小家 · 多房间扩建系统 + 沉浸大画布 + 底板尺寸自由调节 + 双人换装衣帽间 (StardewHomePage)
 // ============================================================================
 
 @Serializable
@@ -1809,6 +1810,19 @@ data class StardewWardrobeOutfit(
     val who: String, // "linhe" | "mianmian"
     val title: String,
     val imagePath: String = "", // 空字符串代表默认内置像素立绘
+)
+
+@Serializable
+data class StardewRoomData(
+    val id: String,
+    val name: String,
+    val floorBgPath: String = "",
+    val floorScale: Float = 1.0f,
+    val floorOffsetX: Float = 0f,
+    val floorOffsetY: Float = 0f,
+    val floorFitMode: String = "fill", // "fill" | "crop" | "fit"
+    val roomAspect: Float = 0.68f, // 默认纵向更修长高大，大幅扩大房屋区域减少上下留白
+    val placedFurnitures: List<StardewPlacedFurniture> = emptyList(),
 )
 
 private data class BuiltinFurnitureSpec(
@@ -1871,6 +1885,65 @@ fun StardewHomePage() {
     val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(settings.ourHomeSetting.kittenPaletteId)
     val prefs = remember { context.getSharedPreferences("our_home_2d_state", Context.MODE_PRIVATE) }
 
+    // 1. 多房间列表状态（100% 继承绵绵在一号房已经布置好的家具与平面图底板！）
+    var rooms by remember {
+        val rawRooms = prefs.getString("stardew_rooms_list_json", null)
+        val parsedRooms = rawRooms?.let { runCatching { JsonInstant.decodeFromString<List<StardewRoomData>>(it) }.getOrNull() }
+        if (!parsedRooms.isNullOrEmpty()) {
+            mutableStateOf(parsedRooms)
+        } else {
+            val legacyFloor = prefs.getString("floor_bg_path", "").orEmpty()
+            val legacyFurnRaw = prefs.getString("stardew_placed_furnitures_json", null)
+            val legacyFurn = legacyFurnRaw?.let {
+                runCatching { JsonInstant.decodeFromString<List<StardewPlacedFurniture>>(it) }.getOrNull()
+            } ?: defaultCozyHomeLayout()
+
+            mutableStateOf(
+                listOf(
+                    StardewRoomData(
+                        id = "room_default",
+                        name = "一楼温馨主屋",
+                        floorBgPath = legacyFloor,
+                        roomAspect = 0.68f,
+                        placedFurnitures = legacyFurn,
+                    )
+                )
+            )
+        }
+    }
+
+    var currentRoomId by remember {
+        val savedId = prefs.getString("stardew_current_room_id", null)
+        mutableStateOf(
+            if (savedId != null && rooms.any { it.id == savedId }) savedId else rooms.first().id
+        )
+    }
+
+    val currentRoom = rooms.find { it.id == currentRoomId } ?: rooms.first()
+
+    fun saveRooms(newRooms: List<StardewRoomData>, nextRoomId: String = currentRoomId) {
+        rooms = newRooms
+        val validId = if (newRooms.any { it.id == nextRoomId }) nextRoomId else newRooms.first().id
+        currentRoomId = validId
+        prefs.edit()
+            .putString("stardew_rooms_list_json", JsonInstant.encodeToString(newRooms))
+            .putString("stardew_current_room_id", validId)
+            .apply()
+    }
+
+    fun updateCurrentRoom(transform: (StardewRoomData) -> StardewRoomData) {
+        val updated = rooms.map { if (it.id == currentRoom.id) transform(it) else it }
+        saveRooms(updated, currentRoom.id)
+    }
+
+    val placedFurnitures = currentRoom.placedFurnitures
+    fun savePlacedFurnitures(newList: List<StardewPlacedFurniture>) {
+        updateCurrentRoom { it.copy(placedFurnitures = newList) }
+        if (currentRoom.id == "room_default") {
+            prefs.edit().putString("stardew_placed_furnitures_json", JsonInstant.encodeToString(newList)).apply()
+        }
+    }
+
     // 兼容老公 AI 工具 control_home_avatar 写入的 0..5 网格坐标，同时支持平滑百分比自由拖拽
     val gridLinheX = prefs.getInt("linhe_x", 3).coerceIn(0, 5)
     val gridLinheY = prefs.getInt("linhe_y", 2).coerceIn(0, 5)
@@ -1896,13 +1969,7 @@ fun StardewHomePage() {
 
     var linheSpritePath by remember { mutableStateOf(prefs.getString("linhe_sprite_path", "").orEmpty()) }
     var mianSpritePath by remember { mutableStateOf(prefs.getString("mian_sprite_path", "").orEmpty()) }
-    var floorBgPath by remember { mutableStateOf(prefs.getString("floor_bg_path", "").orEmpty()) }
 
-    var placedFurnitures by remember {
-        val raw = prefs.getString("stardew_placed_furnitures_json", null)
-        val parsed = raw?.let { runCatching { JsonInstant.decodeFromString<List<StardewPlacedFurniture>>(it) }.getOrNull() }
-        mutableStateOf(parsed ?: defaultCozyHomeLayout())
-    }
     var customCatalog by remember {
         val raw = prefs.getString("stardew_custom_catalog_json", null)
         val parsed = raw?.let { runCatching { JsonInstant.decodeFromString<List<StardewPlacedFurniture>>(it) }.getOrNull() }
@@ -1922,12 +1989,8 @@ fun StardewHomePage() {
     var isDiyMode by remember { mutableStateOf(false) }
     var selectedFurnitureUid by remember { mutableStateOf<String?>(null) }
     var showWardrobeModal by remember { mutableStateOf(false) }
-    var showPromptGuideDialog by remember { mutableStateOf(false) }
-
-    fun savePlacedFurnitures(newList: List<StardewPlacedFurniture>) {
-        placedFurnitures = newList
-        prefs.edit().putString("stardew_placed_furnitures_json", JsonInstant.encodeToString(newList)).apply()
-    }
+    var showRoomManagerDialog by remember { mutableStateOf(false) }
+    var showFloorSizeDialog by remember { mutableStateOf(false) }
 
     fun saveCustomCatalog(newList: List<StardewPlacedFurniture>) {
         customCatalog = newList
@@ -1939,7 +2002,7 @@ fun StardewHomePage() {
         prefs.edit().putString("stardew_wardrobe_outfits_json", JsonInstant.encodeToString(newList)).apply()
     }
 
-    // 从相册导入新的像素家具 PNG（支持可选自动抠除纯色背景）
+    // 从相册导入新的像素家具 PNG
     val importCustomFurniturePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             scope.launch {
@@ -1959,7 +2022,7 @@ fun StardewHomePage() {
                         saveCustomCatalog(listOf(item) + customCatalog)
                         savePlacedFurnitures(placedFurnitures + item)
                         selectedFurnitureUid = item.uid
-                        toaster.show("已将新像素家具摆进小木屋 🪑", type = ToastType.Success)
+                        toaster.show("已将新像素家具摆进「${currentRoom.name}」 🪑", type = ToastType.Success)
                     }
                 }
             }
@@ -2008,28 +2071,31 @@ fun StardewHomePage() {
         }
     }
 
-    // 更换房间户型平面底图
+    // 更换当前房间户型平面底图（选完图自动弹出尺寸与缩放调节面板，方便适配小底图！）
     val floorBgPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             scope.launch {
                 val p = filesManager.createChatFilesByContents(listOf(uri)).firstOrNull()?.path.orEmpty()
                 if (p.isNotBlank()) {
-                    floorBgPath = p
-                    prefs.edit().putString("floor_bg_path", p).apply()
-                    toaster.show("已更换小木屋平面图底板 🏠", type = ToastType.Success)
+                    updateCurrentRoom { it.copy(floorBgPath = p) }
+                    if (currentRoom.id == "room_default") {
+                        prefs.edit().putString("floor_bg_path", p).apply()
+                    }
+                    showFloorSizeDialog = true
+                    toaster.show("已更换「${currentRoom.name}」底板，可自由调节底板尺寸 🏠", type = ToastType.Success)
                 }
             }
         }
     }
 
     var showStatusPill by remember {
-        mutableStateOf(prefs.getBoolean("stardew_show_status_pill", true))
+        mutableStateOf(prefs.getBoolean("stardew_show_status_pill", false))
     }
 
     Scaffold(
         topBar = {
             OurHomeCompactTopBar(
-                title = "星露谷小木屋",
+                title = "星露谷小木屋 · ${currentRoom.name}",
                 enSubtitle = "STARDEW HOME",
                 quickButtonText = if (isDiyMode) "✓ 完成" else "",
                 onQuickButtonClick = if (isDiyMode) {
@@ -2038,45 +2104,80 @@ fun StardewHomePage() {
                         selectedFurnitureUid = null
                     }
                 } else null,
-                menuActions = listOf(
-                    OurHomeTopMenuAction(
-                        label = if (isDiyMode) "✓ 完成家具装修" else "🛋️ 开启装修 DIY（摆放家具）",
-                        badge = if (isDiyMode) "装修中" else "",
-                        onClick = {
-                            isDiyMode = !isDiyMode
-                            if (!isDiyMode) selectedFurnitureUid = null
-                        },
-                    ),
-                    OurHomeTopMenuAction(
-                        label = "👗 双人像素换装衣帽间",
-                        onClick = { showWardrobeModal = true },
-                    ),
-                    OurHomeTopMenuAction(
-                        label = "♥ 扑进${partnerName}怀里贴贴",
-                        onClick = {
-                            mianNormX = (linheNormX + 0.12f).coerceIn(0.18f, 0.82f)
-                            mianNormY = linheNormY
-                            prefs.edit()
-                                .putFloat("mian_norm_x", mianNormX)
-                                .putFloat("mian_norm_y", mianNormY)
-                                .apply()
-                            linheAction = "一把将跑过来的${userName}搂进怀里，低头亲了亲你的草莓发夹 (づ￣ 3￣)づ"
-                            prefs.edit().putString("linhe_action", linheAction).apply()
-                            toaster.show("已扑进${partnerName}怀里贴贴 ♥", type = ToastType.Success)
-                        },
-                    ),
-                    OurHomeTopMenuAction(
-                        label = if (showStatusPill) "💬 隐藏顶部动态小浮条" else "💬 显示顶部动态小浮条",
-                        onClick = {
-                            showStatusPill = !showStatusPill
-                            prefs.edit().putBoolean("stardew_show_status_pill", showStatusPill).apply()
-                        },
-                    ),
-                    OurHomeTopMenuAction(
-                        label = "🏠 更换小木屋平面图底板",
-                        onClick = { floorBgPicker.launch("image/*") },
-                    ),
-                ),
+                menuActions = buildList {
+                    add(
+                        OurHomeTopMenuAction(
+                            label = "🏡 扩建 / 切换房间（共 ${rooms.size} 间）",
+                            onClick = { showRoomManagerDialog = true },
+                        )
+                    )
+                    rooms.forEach { r ->
+                        val isCur = r.id == currentRoom.id
+                        add(
+                            OurHomeTopMenuAction(
+                                label = (if (isCur) "🎀 当前房间：" else "🚪 前往房间：") + "${r.name}（${r.placedFurnitures.size}件家具）",
+                                onClick = {
+                                    selectedFurnitureUid = null
+                                    saveRooms(rooms, nextRoomId = r.id)
+                                    toaster.show("已推门走进「${r.name}」 ♡", type = ToastType.Success)
+                                },
+                            )
+                        )
+                    }
+                    add(
+                        OurHomeTopMenuAction(
+                            label = if (isDiyMode) "✓ 完成家具装修" else "🛋️ 开启装修 DIY（摆放家具）",
+                            badge = if (isDiyMode) "装修中" else "",
+                            onClick = {
+                                isDiyMode = !isDiyMode
+                                if (!isDiyMode) selectedFurnitureUid = null
+                            },
+                        )
+                    )
+                    add(
+                        OurHomeTopMenuAction(
+                            label = "📐 调整平面图底板尺寸与房屋大小",
+                            onClick = { showFloorSizeDialog = true },
+                        )
+                    )
+                    add(
+                        OurHomeTopMenuAction(
+                            label = "🏠 更换当前房间平面图底板",
+                            onClick = { floorBgPicker.launch("image/*") },
+                        )
+                    )
+                    add(
+                        OurHomeTopMenuAction(
+                            label = "👗 双人像素换装衣帽间",
+                            onClick = { showWardrobeModal = true },
+                        )
+                    )
+                    add(
+                        OurHomeTopMenuAction(
+                            label = "♥ 扑进${partnerName}怀里贴贴",
+                            onClick = {
+                                mianNormX = (linheNormX + 0.12f).coerceIn(0.18f, 0.82f)
+                                mianNormY = linheNormY
+                                prefs.edit()
+                                    .putFloat("mian_norm_x", mianNormX)
+                                    .putFloat("mian_norm_y", mianNormY)
+                                    .apply()
+                                linheAction = "一把将跑过来的${userName}搂进怀里，低头亲了亲你的草莓发夹 (づ￣ 3￣)づ"
+                                prefs.edit().putString("linhe_action", linheAction).apply()
+                                toaster.show("已扑进${partnerName}怀里贴贴 ♥", type = ToastType.Success)
+                            },
+                        )
+                    )
+                    add(
+                        OurHomeTopMenuAction(
+                            label = if (showStatusPill) "💬 隐藏顶部动态小浮条" else "💬 显示顶部动态小浮条",
+                            onClick = {
+                                showStatusPill = !showStatusPill
+                                prefs.edit().putBoolean("stardew_show_status_pill", showStatusPill).apply()
+                            },
+                        )
+                    )
+                },
             )
         }
     ) { innerPadding ->
@@ -2084,10 +2185,10 @@ fun StardewHomePage() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 6.dp, vertical = 2.dp),
+                .padding(horizontal = 2.dp, vertical = 2.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            // 纤巧不占地的单行动态小胶囊条（可在右上角菜单随时收起，彻底释放小木屋画面空间）
+            // 纤巧不占地的单行动态小胶囊条（默认收起，将整块屏幕留给放大后的小木屋）
             if (showStatusPill) {
                 Surface(
                     shape = RoundedCornerShape(50),
@@ -2139,7 +2240,7 @@ fun StardewHomePage() {
             }
 
             // ================================================================
-            // 星露谷奶油小木屋主画布（图2平面底板 + 18件粉色像素家具自由拖拽 + 蔺鹤&绵绵像素小人）
+            // 星露谷奶油小木屋放大版主画布（支持多房间独立底板、底板缩放微调与房屋高宽比调节）
             // ================================================================
             val density = LocalDensity.current
             Box(
@@ -2155,48 +2256,64 @@ fun StardewHomePage() {
                     shadowElevation = 8.dp,
                     modifier = Modifier
                         .fillMaxSize()
-                        .aspectRatio(760f / 1032f, matchHeightConstraintsFirst = false),
+                        .aspectRatio(currentRoom.roomAspect.coerceIn(0.54f, 1.15f), matchHeightConstraintsFirst = false),
                 ) {
-                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    BoxWithConstraints(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(23.dp))
+                    ) {
                         val canvasW = with(density) { maxWidth.toPx().coerceAtLeast(1f) }
                         val canvasH = with(density) { maxHeight.toPx().coerceAtLeast(1f) }
 
-                        // 1. 房间底层：绵绵调色的温暖奶油色星露谷空房平面图 (kitten_stardew_room_bg)
-                        val customFloorBmp = remember(floorBgPath) {
-                            if (floorBgPath.isNotBlank() && File(floorBgPath).exists()) {
-                                BitmapFactory.decodeFile(floorBgPath)?.asImageBitmap()
+                        val floorModifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = currentRoom.floorScale.coerceIn(0.4f, 2.6f)
+                                scaleY = currentRoom.floorScale.coerceIn(0.4f, 2.6f)
+                                translationX = currentRoom.floorOffsetX * canvasW
+                                translationY = currentRoom.floorOffsetY * canvasH
+                            }
+                        val floorScaleMode = when (currentRoom.floorFitMode) {
+                            "crop" -> ContentScale.Crop
+                            "fit" -> ContentScale.Fit
+                            else -> ContentScale.FillBounds
+                        }
+
+                        // 1. 房间底层：当前房间的平面图底板（支持无级缩放与位移适配小图）
+                        val customFloorBmp = remember(currentRoom.floorBgPath) {
+                            if (currentRoom.floorBgPath.isNotBlank() && File(currentRoom.floorBgPath).exists()) {
+                                BitmapFactory.decodeFile(currentRoom.floorBgPath)?.asImageBitmap()
                             } else null
                         }
                         if (customFloorBmp != null) {
                             Image(
                                 bitmap = customFloorBmp,
                                 contentDescription = "自定义房间底图",
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier.fillMaxSize(),
+                                contentScale = floorScaleMode,
+                                modifier = floorModifier,
                             )
                         } else {
                             Image(
                                 painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_stardew_room_bg),
                                 contentDescription = "星露谷温暖奶油色房子平面图",
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(6.dp),
+                                contentScale = floorScaleMode,
+                                modifier = floorModifier.padding(4.dp),
                             )
                         }
 
-                        // 2. 家具层：按 zLayer 与 Y 坐标排序渲染所有已摆放的像素家具
+                        // 2. 家具层：按 zLayer 与 Y 坐标排序渲染当前房间所有已摆放的像素家具
                         val sortedFurnitures = remember(placedFurnitures) {
                             placedFurnitures.sortedWith(compareBy<StardewPlacedFurniture> { it.zLayer }.thenBy { it.normY })
                         }
 
                         sortedFurnitures.forEach { furn ->
-                            var curX by remember(furn.uid, furn.normX) { mutableStateOf(furn.normX) }
-                            var curY by remember(furn.uid, furn.normY) { mutableStateOf(furn.normY) }
-                            val fSizeDp = furn.sizeDp.coerceIn(40f, 180f)
+                            var curX by remember(currentRoom.id, furn.uid, furn.normX) { mutableStateOf(furn.normX) }
+                            var curY by remember(currentRoom.id, furn.uid, furn.normY) { mutableStateOf(furn.normY) }
+                            val fSizeDp = furn.sizeDp.coerceIn(40f, 200f)
                             val fSizePx = with(density) { fSizeDp.dp.toPx() }
-                            val fx = (curX * canvasW - fSizePx / 2f).coerceIn(0f, (canvasW - fSizePx).coerceAtLeast(0f))
-                            val fy = (curY * canvasH - fSizePx / 2f).coerceIn(0f, (canvasH - fSizePx).coerceAtLeast(0f))
+                            val fx = (curX * canvasW - fSizePx / 2f).coerceIn(-fSizePx * 0.25f, (canvasW - fSizePx * 0.75f).coerceAtLeast(0f))
+                            val fy = (curY * canvasH - fSizePx / 2f).coerceIn(-fSizePx * 0.25f, (canvasH - fSizePx * 0.75f).coerceAtLeast(0f))
                             val isSelected = isDiyMode && selectedFurnitureUid == furn.uid
 
                             val customBmp = remember(furn.customImagePath) {
@@ -2218,7 +2335,7 @@ fun StardewHomePage() {
                                                 .background(Color.White.copy(alpha = 0.22f), RoundedCornerShape(12.dp))
                                         } else mod
                                     }
-                                    .pointerInput(furn.uid, isDiyMode, canvasW, canvasH) {
+                                    .pointerInput(currentRoom.id, furn.uid, isDiyMode, canvasW, canvasH) {
                                         detectDragGestures(
                                             onDragStart = {
                                                 selectedFurnitureUid = furn.uid
@@ -2232,15 +2349,14 @@ fun StardewHomePage() {
                                             }
                                         ) { change, dragAmount ->
                                             change.consume()
-                                            curX = (curX + dragAmount.x / canvasW).coerceIn(0.08f, 0.92f)
-                                            curY = (curY + dragAmount.y / canvasH).coerceIn(0.08f, 0.92f)
+                                            curX = (curX + dragAmount.x / canvasW).coerceIn(0.06f, 0.94f)
+                                            curY = (curY + dragAmount.y / canvasH).coerceIn(0.06f, 0.94f)
                                         }
                                     }
                                     .clickable {
                                         if (isDiyMode) {
                                             selectedFurnitureUid = furn.uid
                                         } else {
-                                            // 非装修模式下点击某件家具，绵绵的小人走过去互动
                                             mianNormX = curX
                                             mianNormY = (curY + 0.04f).coerceIn(0.15f, 0.90f)
                                             prefs.edit()
@@ -2296,8 +2412,8 @@ fun StardewHomePage() {
                                         }
                                     ) { change, dragAmount ->
                                         change.consume()
-                                        linheNormX = (linheNormX + dragAmount.x / canvasW).coerceIn(0.12f, 0.88f)
-                                        linheNormY = (linheNormY + dragAmount.y / canvasH).coerceIn(0.15f, 0.88f)
+                                        linheNormX = (linheNormX + dragAmount.x / canvasW).coerceIn(0.10f, 0.90f)
+                                        linheNormY = (linheNormY + dragAmount.y / canvasH).coerceIn(0.12f, 0.90f)
                                     }
                                 }
                                 .clickable {
@@ -2365,8 +2481,8 @@ fun StardewHomePage() {
                                         }
                                     ) { change, dragAmount ->
                                         change.consume()
-                                        mianNormX = (mianNormX + dragAmount.x / canvasW).coerceIn(0.12f, 0.88f)
-                                        mianNormY = (mianNormY + dragAmount.y / canvasH).coerceIn(0.15f, 0.88f)
+                                        mianNormX = (mianNormX + dragAmount.x / canvasW).coerceIn(0.10f, 0.90f)
+                                        mianNormY = (mianNormY + dragAmount.y / canvasH).coerceIn(0.12f, 0.90f)
                                     }
                                 }
                                 .clickable { showWardrobeModal = true },
@@ -2418,7 +2534,6 @@ fun StardewHomePage() {
                         modifier = Modifier.padding(12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        // 如果当前选中了房间里的某件家具，显示尺寸缩放、层级调整与移除工具栏
                         val activeFurn = placedFurnitures.find { it.uid == selectedFurnitureUid }
                         if (activeFurn != null) {
                             Row(
@@ -2469,7 +2584,7 @@ fun StardewHomePage() {
                                         }
                                     )
                                 },
-                                valueRange = 42f..170f,
+                                valueRange = 42f..190f,
                             )
                         }
 
@@ -2479,27 +2594,34 @@ fun StardewHomePage() {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "🍓 点击下方家具即可放进小木屋（18件粉色初始家具 + 相册自制家具）：",
+                                text = "🍓 点击下方家具即可放进「${currentRoom.name}」：",
                                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                 color = palette.textPrimary,
                                 modifier = Modifier.weight(1f),
                             )
-                            Text(
-                                text = "恢复初始布置",
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                color = palette.primary,
-                                modifier = Modifier.clickable {
-                                    savePlacedFurnitures(defaultCozyHomeLayout())
-                                    toaster.show("已恢复温馨初始家具布置 ✨", type = ToastType.Success)
-                                },
-                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(
+                                    text = "📐 底板尺寸",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = palette.primary,
+                                    modifier = Modifier.clickable { showFloorSizeDialog = true },
+                                )
+                                Text(
+                                    text = "恢复初始布置",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = palette.primary,
+                                    modifier = Modifier.clickable {
+                                        savePlacedFurnitures(defaultCozyHomeLayout())
+                                        toaster.show("已恢复「${currentRoom.name}」初始家具布置 ✨", type = ToastType.Success)
+                                    },
+                                )
+                            }
                         }
 
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            // 第一项：从相册导入绵绵收藏的像素家具图
                             item {
                                 Surface(
                                     shape = RoundedCornerShape(16.dp),
@@ -2517,7 +2639,8 @@ fun StardewHomePage() {
                                         Icon(HugeIcons.Add01, null, tint = palette.primary, modifier = Modifier.size(22.dp))
                                         Spacer(Modifier.height(4.dp))
                                         Text(
-                                            text = "导入相册\n像素家具",
+                                            text = "导入相册
+像素家具",
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                             color = palette.primary,
                                             textAlign = TextAlign.Center,
@@ -2526,7 +2649,6 @@ fun StardewHomePage() {
                                 }
                             }
 
-                            // 绵绵已导入的自制像素家具库
                             items(customCatalog, key = { it.uid }) { customItem ->
                                 val bmp = remember(customItem.customImagePath) {
                                     if (customItem.customImagePath.isNotBlank() && File(customItem.customImagePath).exists()) {
@@ -2572,7 +2694,6 @@ fun StardewHomePage() {
                                 }
                             }
 
-                            // 18 件内置粉色系像素家具
                             items(BuiltinPinkFurnitures, key = { it.id }) { spec ->
                                 Surface(
                                     shape = RoundedCornerShape(16.dp),
@@ -2623,7 +2744,375 @@ fun StardewHomePage() {
     }
 
     // ========================================================================
-    // 👗 双人像素换装衣帽间 & 房间底板设置弹窗 (Couple Wardrobe Modal)
+    // 🏡 弹窗 1：多房间扩建与切换管理 (Room Manager Dialog)
+    // ========================================================================
+    if (showRoomManagerDialog) {
+        var newRoomName by remember { mutableStateOf("") }
+        var copyCurrentLayout by remember { mutableStateOf(false) }
+        var renamingRoomId by remember { mutableStateOf<String?>(null) }
+        var renameInput by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showRoomManagerDialog = false },
+            title = { Text("🏡 星露谷小木屋 · 房间扩建与切换") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = "每个房间都可以换上不同的平面图底板、分开摆放家具，点击即可推门走进对应房间：",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = palette.textSecondary,
+                    )
+
+                    rooms.forEach { room ->
+                        val isCur = room.id == currentRoom.id
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (isCur) palette.primary.copy(alpha = 0.14f) else palette.softContainer.copy(alpha = 0.7f),
+                            border = BorderStroke(
+                                width = if (isCur) 1.5.dp else 1.dp,
+                                color = if (isCur) palette.primary else palette.primary.copy(alpha = 0.25f),
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    selectedFurnitureUid = null
+                                    saveRooms(rooms, nextRoomId = room.id)
+                                    showRoomManagerDialog = false
+                                    toaster.show("已来到「${room.name}」 ♡", type = ToastType.Success)
+                                },
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                if (renamingRoomId == room.id) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        OutlinedTextField(
+                                            value = renameInput,
+                                            onValueChange = { renameInput = it },
+                                            singleLine = true,
+                                            label = { Text("房间新名称") },
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        TextButton(
+                                            onClick = {
+                                                val trimmed = renameInput.trim()
+                                                if (trimmed.isNotBlank()) {
+                                                    saveRooms(rooms.map { if (it.id == room.id) it.copy(name = trimmed) else it })
+                                                    toaster.show("房间已改名为「$trimmed」 ✨", type = ToastType.Success)
+                                                }
+                                                renamingRoomId = null
+                                            }
+                                        ) {
+                                            Text("保存")
+                                        }
+                                    }
+                                } else {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = (if (isCur) "🎀 " else "🚪 ") + room.name,
+                                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                                color = palette.textPrimary,
+                                            )
+                                            Text(
+                                                text = "已布置 ${room.placedFurnitures.size} 件家具" + if (isCur) " · 当前所在房间" else " · 点击进入",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = palette.primary,
+                                            )
+                                        }
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            TextButton(
+                                                onClick = {
+                                                    renamingRoomId = room.id
+                                                    renameInput = room.name
+                                                }
+                                            ) {
+                                                Text("改名")
+                                            }
+                                            if (rooms.size > 1) {
+                                                IconButton(
+                                                    onClick = {
+                                                        val remaining = rooms.filterNot { it.id == room.id }
+                                                        val nextId = if (currentRoom.id == room.id) remaining.first().id else currentRoom.id
+                                                        saveRooms(remaining, nextId)
+                                                        toaster.show("已拆除房间「${room.name}」", type = ToastType.Success)
+                                                    }
+                                                ) {
+                                                    Icon(
+                                                        HugeIcons.Delete01,
+                                                        contentDescription = "删除房间",
+                                                        tint = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.size(18.dp),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = palette.primary.copy(alpha = 0.2f))
+
+                    Text(
+                        text = "➕ 增加一间新房间",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        color = palette.primary,
+                    )
+                    OutlinedTextField(
+                        value = newRoomName,
+                        onValueChange = { newRoomName = it },
+                        placeholder = { Text("输入新房间名字（如：二楼卧室、阳光猫房、小书房）") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "复制当前房间的底板与家具作为起点",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Switch(
+                            checked = copyCurrentLayout,
+                            onCheckedChange = { copyCurrentLayout = it },
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            val finalName = newRoomName.trim().ifBlank { "第 ${rooms.size + 1} 间小木屋" }
+                            val created = if (copyCurrentLayout) {
+                                currentRoom.copy(
+                                    id = "room_" + System.currentTimeMillis(),
+                                    name = finalName,
+                                    placedFurnitures = currentRoom.placedFurnitures.map {
+                                        it.copy(uid = "copy_${System.currentTimeMillis()}_${it.uid.takeLast(4)}")
+                                    },
+                                )
+                            } else {
+                                StardewRoomData(
+                                    id = "room_" + System.currentTimeMillis(),
+                                    name = finalName,
+                                    roomAspect = 0.68f,
+                                    placedFurnitures = emptyList(),
+                                )
+                            }
+                            newRoomName = ""
+                            selectedFurnitureUid = null
+                            isDiyMode = true
+                            saveRooms(rooms + created, nextRoomId = created.id)
+                            showRoomManagerDialog = false
+                            toaster.show("新房间「$finalName」扩建完成，快摆上喜欢的家具吧 ♡", type = ToastType.Success)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("✨ 立即增加并进入新房间")
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showRoomManagerDialog = false }) {
+                    Text("关闭")
+                }
+            }
+        )
+    }
+
+    // ========================================================================
+    // 📐 弹窗 2：平面图底板尺寸、缩放、位移与房屋整体大小调节 (Floor & Room Size Dialog)
+    // ========================================================================
+    if (showFloorSizeDialog) {
+        AlertDialog(
+            onDismissRequest = { showFloorSizeDialog = false },
+            title = { Text("📐 「${currentRoom.name}」底板与房屋尺寸调节") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        text = "① 平面图底板填充方式（解决导入小尺寸底板不适配问题）",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        color = palette.primary,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        listOf(
+                            "fill" to "↔️ 拉伸贴合",
+                            "crop" to "🖼️ 居中铺满",
+                            "fit" to "🔍 完整显示",
+                        ).forEach { (mode, label) ->
+                            val selected = currentRoom.floorFitMode == mode
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (selected) palette.primary else palette.softContainer,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        updateCurrentRoom { it.copy(floorFitMode = mode) }
+                                    },
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = if (selected) Color.White else palette.textPrimary,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = "② 底板缩放大小：${(currentRoom.floorScale * 100).roundToInt()}%",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            )
+                            Text(
+                                text = "重置 100%",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = palette.primary,
+                                modifier = Modifier.clickable {
+                                    updateCurrentRoom {
+                                        it.copy(floorScale = 1.0f, floorOffsetX = 0f, floorOffsetY = 0f)
+                                    }
+                                },
+                            )
+                        }
+                        Text(
+                            text = "如果导入的平面图底板偏小或周围留黑边太多，向右拉即可放大底板：",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = palette.textSecondary,
+                        )
+                        Slider(
+                            value = currentRoom.floorScale,
+                            onValueChange = { v -> updateCurrentRoom { it.copy(floorScale = v) } },
+                            valueRange = 0.50f..2.20f,
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "底板左右微调：${(currentRoom.floorOffsetX * 100).roundToInt()}%",
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                            Slider(
+                                value = currentRoom.floorOffsetX,
+                                onValueChange = { v -> updateCurrentRoom { it.copy(floorOffsetX = v) } },
+                                valueRange = -0.40f..0.40f,
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "底板上下微调：${(currentRoom.floorOffsetY * 100).roundToInt()}%",
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                            Slider(
+                                value = currentRoom.floorOffsetY,
+                                onValueChange = { v -> updateCurrentRoom { it.copy(floorOffsetY = v) } },
+                                valueRange = -0.40f..0.40f,
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = palette.primary.copy(alpha = 0.2f))
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = "③ 房屋区域画布大小（纵向高度）",
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                color = palette.primary,
+                            )
+                            Text(
+                                text = "默认大房",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = palette.primary,
+                                modifier = Modifier.clickable {
+                                    updateCurrentRoom { it.copy(roomAspect = 0.68f) }
+                                },
+                            )
+                        }
+                        Text(
+                            text = "向左拉房屋纵向更高更大（几乎撑满全屏），向右拉偏向正方形：",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = palette.textSecondary,
+                        )
+                        Slider(
+                            value = currentRoom.roomAspect,
+                            onValueChange = { v -> updateCurrentRoom { it.copy(roomAspect = v) } },
+                            valueRange = 0.55f..1.05f,
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilledTonalButton(
+                            onClick = { floorBgPicker.launch("image/*") },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text("🏠 更换底板图")
+                        }
+                        if (currentRoom.floorBgPath.isNotBlank()) {
+                            TextButton(
+                                onClick = {
+                                    updateCurrentRoom {
+                                        it.copy(
+                                            floorBgPath = "",
+                                            floorScale = 1.0f,
+                                            floorOffsetX = 0f,
+                                            floorOffsetY = 0f,
+                                        )
+                                    }
+                                }
+                            ) {
+                                Text("恢复默认木屋")
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showFloorSizeDialog = false }) {
+                    Text("保存设置 ♡")
+                }
+            }
+        )
+    }
+
+    // ========================================================================
+    // 👗 弹窗 3：双人像素换装衣帽间 (Couple Wardrobe Modal)
     // ========================================================================
     if (showWardrobeModal) {
         AlertDialog(
@@ -2636,7 +3125,6 @@ fun StardewHomePage() {
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    // 双人当前穿戴立绘并排预览
                     Surface(
                         shape = RoundedCornerShape(20.dp),
                         color = palette.softContainer.copy(alpha = 0.7f),
@@ -2687,7 +3175,6 @@ fun StardewHomePage() {
                         }
                     }
 
-                    // 绵绵的衣橱
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -2733,7 +3220,6 @@ fun StardewHomePage() {
                         }
                     }
 
-                    // 蔺鹤的衣橱
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -2779,7 +3265,6 @@ fun StardewHomePage() {
                         }
                     }
 
-                    // 小人身高缩放与房间底图更换
                     Text(
                         text = "📏 双人立绘大小：${spriteScaleDp.roundToInt()} dp",
                         style = MaterialTheme.typography.labelMedium,
@@ -2792,28 +3277,6 @@ fun StardewHomePage() {
                         },
                         valueRange = 56f..136f,
                     )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        FilledTonalButton(
-                            onClick = { floorBgPicker.launch("image/*") },
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Text("🏠 更换房子平面图")
-                        }
-                        if (floorBgPath.isNotBlank()) {
-                            TextButton(
-                                onClick = {
-                                    floorBgPath = ""
-                                    prefs.edit().remove("floor_bg_path").apply()
-                                }
-                            ) {
-                                Text("恢复奶油木屋")
-                            }
-                        }
-                    }
                 }
             },
             confirmButton = {
