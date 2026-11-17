@@ -4,6 +4,10 @@
 
 package me.rerere.rikkahub.ui.pages.home
 
+import androidx.compose.ui.graphics.graphicsLayer
+
+import androidx.compose.runtime.LaunchedEffect
+
 import me.rerere.rikkahub.ui.theme.kittenGridBackground
 import android.content.Context
 import android.graphics.Bitmap

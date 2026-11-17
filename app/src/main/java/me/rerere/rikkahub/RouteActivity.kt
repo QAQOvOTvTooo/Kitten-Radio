@@ -6,6 +6,10 @@
 
 package me.rerere.rikkahub
 
+import androidx.compose.ui.graphics.graphicsLayer
+
+import androidx.compose.foundation.layout.offset
+
 import androidx.compose.foundation.layout.navigationBarsPadding
 import me.rerere.rikkahub.ui.theme.kittenGridBackground
 import android.annotation.SuppressLint

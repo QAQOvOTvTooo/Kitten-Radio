@@ -2639,8 +2639,7 @@ fun StardewHomePage() {
                                         Icon(HugeIcons.Add01, null, tint = palette.primary, modifier = Modifier.size(22.dp))
                                         Spacer(Modifier.height(4.dp))
                                         Text(
-                                            text = "导入相册
-像素家具",
+                                            text = "导入相册\n像素家具",
                                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                             color = palette.primary,
                                             textAlign = TextAlign.Center,
