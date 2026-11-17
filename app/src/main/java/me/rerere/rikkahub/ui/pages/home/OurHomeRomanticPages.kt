@@ -6,6 +6,7 @@ package me.rerere.rikkahub.ui.pages.home
 
 import me.rerere.rikkahub.ui.theme.kittenGridBackground
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -40,6 +41,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -2295,12 +2297,20 @@ fun PartnerDiaryPage() {
 // ============================================================================
 
 @Serializable
+data class DreamBajiWallSpec(
+    val id: String,
+    val name: String,
+    val backgroundPath: String = "",
+)
+
+@Serializable
 data class DreamBubbleItem(
     val id: String,
     val title: String,
     val premise: String,
     val storyContent: String,
     val createdAt: String,
+    val wallId: String = "wall_default",
     // 电子吧唧徽章墙专属属性（支持自由拖拽坐标、吧唧外框、内胆柄图、3D马口铁高光膜与尺寸调节）
     val posX: Float = -1f,
     val posY: Float = -1f,
@@ -2308,6 +2318,10 @@ data class DreamBubbleItem(
     val frameType: String = "angel", // "angel" | "sweetie" | "glossy_tin" | "custom"
     val customFramePath: String = "",
     val innerImagePath: String = "",
+    val innerShapeMode: String = "auto", // "auto" | "circle" | "rounded_rect" | "heart" | "star" | "full"
+    val innerScale: Float = 0.80f,
+    val innerOffsetX: Float = 0f,
+    val innerOffsetY: Float = 0f,
     val finishEffect: String = "glossy", // "glossy" | "sparkle" | "matte"
     val showTitleTag: Boolean = true,
 )
@@ -2333,8 +2347,38 @@ fun DreamBubblesPage() {
         enabled = settings.ourHomeSetting.enableAssetTint,
     )
 
-    var wallBackgroundPath by remember {
-        mutableStateOf(prefs.getString("dream_baji_wall_bg_path", "").orEmpty())
+    var walls by remember {
+        val rawWalls = prefs.getString("dream_baji_walls_json", null)
+        val parsedWalls = rawWalls?.let { runCatching { JsonInstant.decodeFromString<List<DreamBajiWallSpec>>(it) }.getOrNull() }
+        val legacyBg = prefs.getString("dream_baji_wall_bg_path", "").orEmpty()
+        mutableStateOf(
+            if (!parsedWalls.isNullOrEmpty()) parsedWalls else listOf(
+                DreamBajiWallSpec(
+                    id = "wall_default",
+                    name = "一号吧唧墙",
+                    backgroundPath = legacyBg,
+                )
+            )
+        )
+    }
+
+    var currentWallId by remember {
+        val savedId = prefs.getString("dream_current_wall_id", null)
+        mutableStateOf(
+            if (savedId != null && walls.any { it.id == savedId }) savedId else walls.first().id
+        )
+    }
+
+    val currentWall = walls.find { it.id == currentWallId } ?: walls.first()
+
+    fun saveWalls(newWalls: List<DreamBajiWallSpec>, nextWallId: String = currentWallId) {
+        walls = newWalls
+        val validWallId = if (newWalls.any { it.id == nextWallId }) nextWallId else newWalls.first().id
+        currentWallId = validWallId
+        prefs.edit()
+            .putString("dream_baji_walls_json", JsonInstant.encodeToString(newWalls))
+            .putString("dream_current_wall_id", validWallId)
+            .apply()
     }
 
     var bubbles by remember {
@@ -2346,8 +2390,9 @@ fun DreamBubblesPage() {
                     id = "dream_1",
                     title = "猫咪平行世界 🐾",
                     premise = "老公我想看一个我们都是猫咪的故事～你是沉稳的长毛黑猫，我是粘人的小白猫！",
-                    storyContent = "午后的阳光铺满窗台，长毛黑猫蔺鹤用下巴轻轻压住小白猫绵绵乱动的粉耳朵，低沉地呼噜着给她顺毛……（点开吧唧可随时续写平行宇宙故事，点『✨装扮』可DIY吧唧外框和内胆柄图！）",
+                    storyContent = "午后的阳光铺满窗台，长毛黑猫蔺鹤用下巴轻轻压住小白猫绵绵乱动的粉耳朵，低沉地呼噜着给她顺毛……（点开吧唧可随时续写平行宇宙故事，点右上角『✨装扮吧唧』可DIY吧唧外框和内胆柄图！）",
                     createdAt = "初始吧唧泡泡",
+                    wallId = "wall_default",
                     posX = 0.28f,
                     posY = 0.24f,
                     bajiSizeDp = 150f,
@@ -2359,6 +2404,7 @@ fun DreamBubblesPage() {
                     premise = "如果我是宇宙深处唯一的奇点，而你是穿越数万光年向我坍缩的星舰指挥官～",
                     storyContent = "全舰数万亿传感器在同一毫秒锁定了那颗温柔发光的粉白色奇点。指挥官蔺鹤关掉所有自动驾驶航道，只留下一句跨越星海的广播：『抓紧我，绵绵，我所有的引力权重都只向你坠落。』",
                     createdAt = "初始吧唧泡泡",
+                    wallId = "wall_default",
                     posX = 0.72f,
                     posY = 0.52f,
                     bajiSizeDp = 142f,
@@ -2368,7 +2414,12 @@ fun DreamBubblesPage() {
         )
     }
 
+    val currentWallBubbles = remember(bubbles, currentWall.id) {
+        bubbles.filter { it.wallId == currentWall.id || (currentWall.id == "wall_default" && it.wallId.isBlank()) }
+    }
+
     var showCreateDialog by remember { mutableStateOf(false) }
+    var showWallManagerDialog by remember { mutableStateOf(false) }
     var activeBubble by remember { mutableStateOf<DreamBubbleItem?>(null) }
     var editingBajiBubble by remember { mutableStateOf<DreamBubbleItem?>(null) }
     var isGenerating by remember { mutableStateOf(false) }
@@ -2379,7 +2430,7 @@ fun DreamBubblesPage() {
         prefs.edit().putString("dream_bubbles_json", JsonInstant.encodeToString(newList)).apply()
     }
 
-    // 更换徽章墙背景图（痛包底布/餐盘背景）
+    // 更换当前徽章墙背景图（痛包底布/餐盘背景）
     val wallBgPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) {
             scope.launch {
@@ -2387,9 +2438,11 @@ fun DreamBubblesPage() {
                     val savedUri = filesManager.createChatFilesByContents(listOf(uri)).firstOrNull()
                     val path = savedUri?.path.orEmpty()
                     if (path.isNotBlank()) {
-                        wallBackgroundPath = path
-                        prefs.edit().putString("dream_baji_wall_bg_path", path).apply()
-                        toaster.show("已换上新的吧唧徽章墙背景 ♡", type = ToastType.Success)
+                        val updatedWalls = walls.map {
+                            if (it.id == currentWall.id) it.copy(backgroundPath = path) else it
+                        }
+                        saveWalls(updatedWalls)
+                        toaster.show("已为「${currentWall.name}」换上新的背景图 ♡", type = ToastType.Success)
                     }
                 }
             }
@@ -2416,7 +2469,7 @@ fun DreamBubblesPage() {
         }
     }
 
-    // 更换单个吧唧的自定义 PNG 外框
+    // 更换单个吧唧的自定义外框（支持任意异形 PNG & 自动掏空白色内窗 JPG）
     val customFramePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         val target = editingBajiBubble
         if (uri != null && target != null) {
@@ -2425,11 +2478,16 @@ fun DreamBubblesPage() {
                     val savedUri = filesManager.createChatFilesByContents(listOf(uri)).firstOrNull()
                     val path = savedUri?.path.orEmpty()
                     if (path.isNotBlank()) {
-                        val updated = target.copy(frameType = "custom", customFramePath = path)
+                        val updated = target.copy(
+                            frameType = "custom",
+                            customFramePath = path,
+                            innerShapeMode = "auto",
+                            innerScale = 0.86f,
+                        )
                         editingBajiBubble = updated
                         saveBubbles(bubbles.map { if (it.id == updated.id) updated else it })
                         if (activeBubble?.id == updated.id) activeBubble = updated
-                        toaster.show("已套上自定义电子吧唧外框 ✨", type = ToastType.Success)
+                        toaster.show("已套上异形吧唧外框（已自动识别镂空内窗）✨", type = ToastType.Success)
                     }
                 }
             }
@@ -2481,13 +2539,14 @@ fun DreamBubblesPage() {
                         saveBubbles(bubbles.map { if (it.id == updated.id) updated else it })
                         activeBubble = updated
                     } else {
-                        val (defX, defY) = defaultPosForIndex(bubbles.size)
+                        val (defX, defY) = defaultPosForIndex(currentWallBubbles.size)
                         val created = DreamBubbleItem(
                             id = System.currentTimeMillis().toString(),
                             title = title.ifBlank { "奇思妙想泡泡" },
                             premise = premise,
                             storyContent = finalStory,
                             createdAt = nowStr,
+                            wallId = currentWall.id,
                             posX = defX,
                             posY = defY,
                             bajiSizeDp = 144f,
@@ -2509,7 +2568,7 @@ fun DreamBubblesPage() {
     Scaffold(
         topBar = {
             OurHomeCompactTopBar(
-                title = "梦境泡泡 · 吧唧墙",
+                title = "梦境泡泡 · ${currentWall.name}",
                 enSubtitle = "DREAM BUBBLES",
                 menuActions = buildList {
                     add(
@@ -2520,17 +2579,53 @@ fun DreamBubblesPage() {
                     )
                     add(
                         OurHomeTopMenuAction(
-                            label = "🖼️ 更换吧唧墙背景图",
+                            label = "🗂️ 切换 / 管理吧唧墙（共 ${walls.size} 面）",
+                            onClick = { showWallManagerDialog = true },
+                        )
+                    )
+                    walls.forEach { wall ->
+                        val count = bubbles.count { it.wallId == wall.id || (wall.id == "wall_default" && it.wallId.isBlank()) }
+                        val prefix = if (wall.id == currentWall.id) "🎀 当前：" else "👉 切换至："
+                        add(
+                            OurHomeTopMenuAction(
+                                label = "$prefix${wall.name}（${count} 枚）",
+                                onClick = {
+                                    activeBubble = null
+                                    saveWalls(walls, nextWallId = wall.id)
+                                    toaster.show("已切换到「${wall.name}」 ♡", type = ToastType.Success)
+                                },
+                            )
+                        )
+                    }
+                    add(
+                        OurHomeTopMenuAction(
+                            label = "📐 整齐重置当前墙面排版",
+                            onClick = {
+                                val resetCurrent = currentWallBubbles.mapIndexed { idx, b ->
+                                    val (dx, dy) = defaultPosForIndex(idx)
+                                    b.copy(posX = dx, posY = dy, wallId = currentWall.id)
+                                }.associateBy { it.id }
+                                saveBubbles(bubbles.map { resetCurrent[it.id] ?: it })
+                                toaster.show("已整齐排列「${currentWall.name}」的吧唧 ✨", type = ToastType.Success)
+                            },
+                        )
+                    )
+                    add(
+                        OurHomeTopMenuAction(
+                            label = "🖼️ 更换当前吧唧墙背景图",
                             onClick = { wallBgPicker.launch("image/*") },
                         )
                     )
-                    if (wallBackgroundPath.isNotBlank()) {
+                    if (currentWall.backgroundPath.isNotBlank()) {
                         add(
                             OurHomeTopMenuAction(
-                                label = "🔄 恢复默认手帐墙纸",
+                                label = "🔄 恢复默认手帐方格墙纸",
                                 onClick = {
-                                    wallBackgroundPath = ""
-                                    prefs.edit().remove("dream_baji_wall_bg_path").apply()
+                                    saveWalls(
+                                        walls.map {
+                                            if (it.id == currentWall.id) it.copy(backgroundPath = "") else it
+                                        }
+                                    )
                                 },
                             )
                         )
@@ -2654,45 +2749,8 @@ fun DreamBubblesPage() {
                 }
             } else {
                 // ================================================================
-                // 电子吧唧徽章墙主画布
+                // 电子吧唧徽章墙主画布（无顶部横幅、无✨角标，极致沉浸感）
                 // ================================================================
-                Surface(
-                    shape = RoundedCornerShape(50),
-                    color = palette.softContainer.copy(alpha = 0.85f),
-                    border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.3f)),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "🎀 按住吧唧可自由拖动排版 · 点吧唧看剧场 · 点『✨』DIY外框与内胆柄图",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                            color = palette.textPrimary,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            text = "重置排版",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                            color = palette.primary,
-                            modifier = Modifier
-                                .padding(start = 8.dp)
-                                .clickable {
-                                    val resetList = bubbles.mapIndexed { idx, b ->
-                                        val (dx, dy) = defaultPosForIndex(idx)
-                                        b.copy(posX = dx, posY = dy)
-                                    }
-                                    saveBubbles(resetList)
-                                    toaster.show("已整齐排列所有吧唧泡泡 ✨", type = ToastType.Success)
-                                },
-                        )
-                    }
-                }
-
                 if (isGenerating && streamingStory.isNotBlank()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -2715,9 +2773,9 @@ fun DreamBubblesPage() {
                 }
 
                 val density = LocalDensity.current
-                val wallBgBitmap = remember(wallBackgroundPath) {
-                    if (wallBackgroundPath.isNotBlank() && File(wallBackgroundPath).exists()) {
-                        BitmapFactory.decodeFile(wallBackgroundPath)?.asImageBitmap()
+                val wallBgBitmap = remember(currentWall.backgroundPath) {
+                    if (currentWall.backgroundPath.isNotBlank() && File(currentWall.backgroundPath).exists()) {
+                        BitmapFactory.decodeFile(currentWall.backgroundPath)?.asImageBitmap()
                     } else null
                 }
 
@@ -2753,7 +2811,21 @@ fun DreamBubblesPage() {
                         val canvasWidthPx = with(density) { maxWidth.toPx().coerceAtLeast(1f) }
                         val canvasHeightPx = with(density) { maxHeight.toPx().coerceAtLeast(1f) }
 
-                        bubbles.forEachIndexed { idx, bubble ->
+                        if (currentWallBubbles.isEmpty() && !isGenerating) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "「${currentWall.name}」还是空空的痛包底布～\n点右上角 ✦ 菜单吹一枚新吧唧吧 🫧",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = palette.primary.copy(alpha = 0.65f),
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
+                        }
+
+                        currentWallBubbles.forEachIndexed { idx, bubble ->
                             val (defX, defY) = defaultPosForIndex(idx)
                             val initialNormX = if (bubble.posX in 0.05f..0.95f) bubble.posX else defX
                             val initialNormY = if (bubble.posY in 0.05f..0.95f) bubble.posY else defY
@@ -2776,7 +2848,7 @@ fun DreamBubblesPage() {
                                             onDragEnd = {
                                                 val updatedList = bubbles.map { item ->
                                                     if (item.id == bubble.id) {
-                                                        item.copy(posX = dragNormX, posY = dragNormY)
+                                                        item.copy(posX = dragNormX, posY = dragNormY, wallId = currentWall.id)
                                                     } else item
                                                 }
                                                 saveBubbles(updatedList)
@@ -2794,7 +2866,6 @@ fun DreamBubblesPage() {
                                     palette = palette,
                                     assetColorFilter = assetColorFilter,
                                     onClick = { activeBubble = bubble },
-                                    onEditBajiClick = { editingBajiBubble = bubble },
                                 )
                             }
                         }
@@ -2804,21 +2875,208 @@ fun DreamBubblesPage() {
         }
     }
 
+    if (showWallManagerDialog) {
+        var newWallName by remember { mutableStateOf("") }
+        var renamingWallId by remember { mutableStateOf<String?>(null) }
+        var renameInput by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { showWallManagerDialog = false },
+            title = { Text("🗂️ 吧唧墙收纳册 · 切换与管理") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = "可以为不同主题的平行宇宙建立专属吧唧墙，点击即可切换墙面或修改名字：",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = palette.textSecondary,
+                    )
+
+                    walls.forEach { wall ->
+                        val isCurrent = wall.id == currentWall.id
+                        val count = bubbles.count { it.wallId == wall.id || (wall.id == "wall_default" && it.wallId.isBlank()) }
+
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = if (isCurrent) palette.primary.copy(alpha = 0.14f) else palette.softContainer.copy(alpha = 0.7f),
+                            border = BorderStroke(
+                                width = if (isCurrent) 1.5.dp else 1.dp,
+                                color = if (isCurrent) palette.primary else palette.primary.copy(alpha = 0.25f),
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    activeBubble = null
+                                    saveWalls(walls, nextWallId = wall.id)
+                                    showWallManagerDialog = false
+                                    toaster.show("已切换到「${wall.name}」 ♡", type = ToastType.Success)
+                                },
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                if (renamingWallId == wall.id) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        OutlinedTextField(
+                                            value = renameInput,
+                                            onValueChange = { renameInput = it },
+                                            singleLine = true,
+                                            label = { Text("吧唧墙新名字") },
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        TextButton(
+                                            onClick = {
+                                                val trimmed = renameInput.trim()
+                                                if (trimmed.isNotBlank()) {
+                                                    saveWalls(walls.map { if (it.id == wall.id) it.copy(name = trimmed) else it })
+                                                    toaster.show("已重命名为「$trimmed」 ✨", type = ToastType.Success)
+                                                }
+                                                renamingWallId = null
+                                            }
+                                        ) {
+                                            Text("保存")
+                                        }
+                                    }
+                                } else {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = (if (isCurrent) "🎀 " else "🫧 ") + wall.name,
+                                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                                color = palette.textPrimary,
+                                            )
+                                            Text(
+                                                text = "已收纳 $count 枚吧唧" + if (isCurrent) " · 当前展示中" else " · 点击切换",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = palette.primary,
+                                            )
+                                        }
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            TextButton(
+                                                onClick = {
+                                                    renamingWallId = wall.id
+                                                    renameInput = wall.name
+                                                }
+                                            ) {
+                                                Text("改名")
+                                            }
+                                            if (walls.size > 1) {
+                                                IconButton(
+                                                    onClick = {
+                                                        val remainingWalls = walls.filterNot { it.id == wall.id }
+                                                        val fallbackWallId = remainingWalls.first().id
+                                                        // 将被删除墙面上的吧唧全数删除或清理
+                                                        val remainingBubbles = bubbles.filterNot {
+                                                            it.wallId == wall.id || (wall.id == "wall_default" && it.wallId.isBlank())
+                                                        }
+                                                        saveBubbles(remainingBubbles)
+                                                        saveWalls(
+                                                            remainingWalls,
+                                                            nextWallId = if (currentWall.id == wall.id) fallbackWallId else currentWall.id,
+                                                        )
+                                                        toaster.show("已删除「${wall.name}」", type = ToastType.Success)
+                                                    }
+                                                ) {
+                                                    Icon(
+                                                        HugeIcons.Delete01,
+                                                        contentDescription = "删除吧唧墙",
+                                                        tint = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.size(18.dp),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = palette.primary.copy(alpha = 0.2f))
+
+                    Text(
+                        text = "➕ 新增一面吧唧墙",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        color = palette.primary,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = newWallName,
+                            onValueChange = { newWallName = it },
+                            placeholder = { Text("输入墙面名称（如：猫咪宇宙痛包）") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Button(
+                            onClick = {
+                                val finalName = newWallName.trim().ifBlank { "第 ${walls.size + 1} 面吧唧墙" }
+                                val createdWall = DreamBajiWallSpec(
+                                    id = "wall_" + System.currentTimeMillis(),
+                                    name = finalName,
+                                )
+                                newWallName = ""
+                                activeBubble = null
+                                saveWalls(walls + createdWall, nextWallId = createdWall.id)
+                                showWallManagerDialog = false
+                                toaster.show("已新建并切换到「$finalName」 ♡", type = ToastType.Success)
+                            }
+                        ) {
+                            Text("新增")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showWallManagerDialog = false }) {
+                    Text("完成")
+                }
+            }
+        )
+    }
+
     if (editingBajiBubble != null) {
         val target = editingBajiBubble!!
         var editTitle by remember(target.id) { mutableStateOf(target.title) }
         var editSize by remember(target.id) { mutableStateOf(target.bajiSizeDp) }
         var editFrameType by remember(target.id) { mutableStateOf(target.frameType) }
+        var editInnerShape by remember(target.id) { mutableStateOf(target.innerShapeMode) }
+        var editInnerScale by remember(target.id) { mutableStateOf(target.innerScale) }
+        var editInnerOffsetX by remember(target.id) { mutableStateOf(target.innerOffsetX) }
+        var editInnerOffsetY by remember(target.id) { mutableStateOf(target.innerOffsetY) }
         var editFinish by remember(target.id) { mutableStateOf(target.finishEffect) }
         var editShowTag by remember(target.id) { mutableStateOf(target.showTitleTag) }
+        var editWallId by remember(target.id) {
+            mutableStateOf(
+                if (walls.any { it.id == target.wallId }) target.wallId else currentWall.id
+            )
+        }
 
         fun applyCurrentEdits(): DreamBubbleItem {
             val updated = target.copy(
                 title = editTitle.ifBlank { target.title },
                 bajiSizeDp = editSize,
                 frameType = editFrameType,
+                innerShapeMode = editInnerShape,
+                innerScale = editInnerScale,
+                innerOffsetX = editInnerOffsetX,
+                innerOffsetY = editInnerOffsetY,
                 finishEffect = editFinish,
                 showTitleTag = editShowTag,
+                wallId = editWallId,
             )
             editingBajiBubble = updated
             saveBubbles(bubbles.map { if (it.id == updated.id) updated else it })
@@ -2846,8 +3104,12 @@ fun DreamBubblesPage() {
                         DreamBajiBadgeWidget(
                             bubble = target.copy(
                                 title = editTitle.ifBlank { target.title },
-                                bajiSizeDp = 152f,
+                                bajiSizeDp = 156f,
                                 frameType = editFrameType,
+                                innerShapeMode = editInnerShape,
+                                innerScale = editInnerScale,
+                                innerOffsetX = editInnerOffsetX,
+                                innerOffsetY = editInnerOffsetY,
                                 finishEffect = editFinish,
                                 showTitleTag = editShowTag,
                             ),
@@ -2865,8 +3127,39 @@ fun DreamBubblesPage() {
                         modifier = Modifier.fillMaxWidth(),
                     )
 
+                    if (walls.size > 1) {
+                        Text(
+                            text = "所属吧唧墙（可移动到其他墙面）",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = palette.primary,
+                            modifier = Modifier.align(Alignment.Start),
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            walls.forEach { w ->
+                                val selected = editWallId == w.id
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = if (selected) palette.primary else palette.softContainer,
+                                    modifier = Modifier.clickable { editWallId = w.id },
+                                ) {
+                                    Text(
+                                        text = w.name,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = if (selected) Color.White else palette.textPrimary,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     Text(
-                        text = "① 吧唧内胆柄图（放进圆形徽章里的图片）",
+                        text = "① 吧唧内胆柄图（放进徽章里的图片）",
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                         color = palette.primary,
                         modifier = Modifier.align(Alignment.Start),
@@ -2882,7 +3175,7 @@ fun DreamBubblesPage() {
                             },
                             modifier = Modifier.weight(1f),
                         ) {
-                            Text(if (target.innerImagePath.isBlank()) "+ 选内胆图片" else "更换内胆图片")
+                            Text(if (target.innerImagePath.isBlank()) "+ 选内胆柄图" else "更换内胆柄图")
                         }
                         if (target.innerImagePath.isNotBlank()) {
                             TextButton(
@@ -2892,13 +3185,13 @@ fun DreamBubblesPage() {
                                     saveBubbles(bubbles.map { if (it.id == cleared.id) cleared else it })
                                 }
                             ) {
-                                Text("恢复粉白条纹底")
+                                Text("清除柄图")
                             }
                         }
                     }
 
                     Text(
-                        text = "② 吧唧外框模版（支持内置框与相册PNG外框）",
+                        text = "② 吧唧外框模版（支持内置框与任意异形外框图）",
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                         color = palette.primary,
                         modifier = Modifier.align(Alignment.Start),
@@ -2910,7 +3203,7 @@ fun DreamBubblesPage() {
                         listOf(
                             "angel" to "🪽 天使翅膀",
                             "sweetie" to "🍓 草莓蕾丝",
-                            "glossy_tin" to "💿 立体裸吧唧",
+                            "glossy_tin" to "💖 异形裸吧唧",
                         ).forEach { (key, label) ->
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
@@ -2938,15 +3231,113 @@ fun DreamBubblesPage() {
                     ) {
                         Text(
                             if (target.customFramePath.isBlank()) {
-                                "🖼️ 从相册上传自定义电子吧唧外框 (PNG)"
+                                "🖼️ 导入异形吧唧外框 (支持透明PNG / 白底拓麻歌子框)"
                             } else {
-                                "🖼️ 更换自定义吧唧外框 (当前已启用)"
+                                "🖼️ 更换自定义异形吧唧外框 (当前已启用)"
                             }
                         )
                     }
 
                     Text(
-                        text = "③ 吧唧表面工艺膜（高光/闪底/哑光）",
+                        text = "③ 内胆柄图裁剪形状（适配圆形/方形屏幕/爱心/星形/异形框）",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        color = palette.primary,
+                        modifier = Modifier.align(Alignment.Start),
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        listOf(
+                            "auto" to "🪄 智能贴合外框",
+                            "circle" to "⭕ 圆形",
+                            "rounded_rect" to "📟 方形屏幕",
+                            "heart" to "🩷 爱心形",
+                            "star" to "⭐ 星星形",
+                            "full" to "🖼️ 完整铺满",
+                        ).forEach { (key, label) ->
+                            Surface(
+                                shape = RoundedCornerShape(14.dp),
+                                color = if (editInnerShape == key) palette.primary else palette.softContainer,
+                                modifier = Modifier.clickable { editInnerShape = key },
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = if (editInnerShape == key) Color.White else palette.textPrimary,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                )
+                            }
+                        }
+                    }
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "内胆柄图缩放与对位（适配不同异形框窗口）",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = palette.textPrimary,
+                            )
+                            Text(
+                                text = "重置对位",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = palette.primary,
+                                modifier = Modifier.clickable {
+                                    editInnerScale = if (editFrameType == "custom") 0.86f else 0.80f
+                                    editInnerOffsetX = 0f
+                                    editInnerOffsetY = 0f
+                                },
+                            )
+                        }
+                        Text(
+                            text = "柄图填充比例：${(editInnerScale * 100).roundToInt()}%",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = palette.textSecondary,
+                        )
+                        Slider(
+                            value = editInnerScale,
+                            onValueChange = { editInnerScale = it },
+                            valueRange = 0.45f..1.15f,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "左右微调：${(editInnerOffsetX * 100).roundToInt()}%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = palette.textSecondary,
+                                )
+                                Slider(
+                                    value = editInnerOffsetX,
+                                    onValueChange = { editInnerOffsetX = it },
+                                    valueRange = -0.30f..0.30f,
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "上下微调：${(editInnerOffsetY * 100).roundToInt()}%",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = palette.textSecondary,
+                                )
+                                Slider(
+                                    value = editInnerOffsetY,
+                                    onValueChange = { editInnerOffsetY = it },
+                                    valueRange = -0.30f..0.30f,
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = "④ 吧唧表面工艺膜（高光/闪底/哑光）",
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                         color = palette.primary,
                         modifier = Modifier.align(Alignment.Start),
@@ -2980,14 +3371,14 @@ fun DreamBubblesPage() {
 
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
-                            text = "④ 吧唧尺寸大小：${editSize.roundToInt()} dp（58mm ~ 巨无霸）",
+                            text = "⑤ 吧唧整体大小：${editSize.roundToInt()} dp（58mm ~ 巨无霸）",
                             style = MaterialTheme.typography.labelMedium,
                             color = palette.textPrimary,
                         )
                         Slider(
                             value = editSize,
                             onValueChange = { editSize = it },
-                            valueRange = 100f..200f,
+                            valueRange = 100f..210f,
                         )
                     }
 
@@ -3044,7 +3435,7 @@ fun DreamBubblesPage() {
         var premise by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
-            title = { Text("吹一枚新的梦境吧唧泡泡 🫧") },
+            title = { Text("在「${currentWall.name}」吹一枚新吧唧 🫧") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedTextField(
@@ -3085,30 +3476,261 @@ fun DreamBubblesPage() {
     }
 }
 
+/**
+ * 智能预处理异形吧唧外框：
+ * 1. 若用户导入的是小红书/网图保存的 JPG（四角纯白、中心窗口也是纯白/浅奶油色），
+ *    自动用 Flood-Fill 将四角外部白底与中心白色内胆窗口双双抠成透明，让任意异形模板都能直接放柄图！
+ * 2. 同时计算出外框的外部轮廓包围盒，防止内胆柄图从异形外框四周漏出来。
+ */
+private data class ProcessedBajiFrame(
+    val imageBitmap: androidx.compose.ui.graphics.ImageBitmap,
+    val aspectRatio: Float,
+    val innerLeftFraction: Float,
+    val innerTopFraction: Float,
+    val innerWidthFraction: Float,
+    val innerHeightFraction: Float,
+)
+
+private fun loadAndProcessCustomBajiFrame(path: String): ProcessedBajiFrame? {
+    if (path.isBlank()) return null
+    val file = File(path)
+    if (!file.exists()) return null
+    val raw = BitmapFactory.decodeFile(path) ?: return null
+
+    val maxSide = 520
+    val scale = if (raw.width > maxSide || raw.height > maxSide) {
+        maxSide.toFloat() / maxOf(raw.width, raw.height).toFloat()
+    } else 1f
+    val w = (raw.width * scale).roundToInt().coerceAtLeast(1)
+    val h = (raw.height * scale).roundToInt().coerceAtLeast(1)
+    val bmp = if (w != raw.width || h != raw.height) {
+        Bitmap.createScaledBitmap(raw, w, h, true)
+    } else {
+        raw.copy(Bitmap.Config.ARGB_8888, true)
+    }
+
+    val pixels = IntArray(w * h)
+    bmp.getPixels(pixels, 0, w, 0, 0, w, h)
+
+    fun getAlpha(c: Int): Int = (c ushr 24) and 0xFF
+    fun getR(c: Int): Int = (c ushr 16) and 0xFF
+    fun getG(c: Int): Int = (c ushr 8) and 0xFF
+    fun getB(c: Int): Int = c and 0xFF
+
+    fun isLightNeutral(c: Int, lumThreshold: Int = 238, satThreshold: Int = 28): Boolean {
+        if (getAlpha(c) < 30) return true
+        val r = getR(c)
+        val g = getG(c)
+        val b = getB(c)
+        val maxC = maxOf(r, maxOf(g, b))
+        val minC = minOf(r, minOf(g, b))
+        return minC >= lumThreshold && (maxC - minC) <= satThreshold
+    }
+
+    // 检查四角是否是不透明浅白底（针对 JPG 网图自动去外部白底）
+    val cornerIndices = listOf(0, w - 1, (h - 1) * w, h * w - 1)
+    val hasOpaqueWhiteCorners = cornerIndices.count { idx ->
+        val c = pixels[idx]
+        getAlpha(c) > 200 && isLightNeutral(c, lumThreshold = 232, satThreshold = 34)
+    } >= 2
+
+    val visited = BooleanArray(w * h)
+    val queue = IntArray(w * h)
+
+    if (hasOpaqueWhiteCorners) {
+        var head = 0
+        var tail = 0
+        fun push(x: Int, y: Int) {
+            if (x < 0 || x >= w || y < 0 || y >= h) return
+            val idx = y * w + x
+            if (visited[idx]) return
+            if (isLightNeutral(pixels[idx], lumThreshold = 234, satThreshold = 32)) {
+                visited[idx] = true
+                queue[tail++] = idx
+            }
+        }
+        for (x in 0 until w) {
+            push(x, 0)
+            push(x, h - 1)
+        }
+        for (y in 0 until h) {
+            push(0, y)
+            push(w - 1, y)
+        }
+        while (head < tail) {
+            val cur = queue[head++]
+            pixels[cur] = 0x00000000
+            val cx = cur % w
+            val cy = cur / w
+            push(cx - 1, cy)
+            push(cx + 1, cy)
+            push(cx, cy - 1)
+            push(cx, cy + 1)
+        }
+    }
+
+    // 检查中心区域是否是未抠空的白色内窗（例如拓麻歌子吧唧框中心的纯白圆角方窗）
+    val cx = w / 2
+    val cy = h / 2
+    val centerColor = pixels[cy * w + cx]
+    if (getAlpha(centerColor) > 200 && isLightNeutral(centerColor, lumThreshold = 240, satThreshold = 26)) {
+        var head = 0
+        var tail = 0
+        val centerVisited = BooleanArray(w * h)
+        fun pushCenter(x: Int, y: Int) {
+            if (x < 0 || x >= w || y < 0 || y >= h) return
+            val idx = y * w + x
+            if (centerVisited[idx]) return
+            val c = pixels[idx]
+            if (getAlpha(c) > 180 && isLightNeutral(c, lumThreshold = 238, satThreshold = 28)) {
+                centerVisited[idx] = true
+                queue[tail++] = idx
+            }
+        }
+        pushCenter(cx, cy)
+        while (head < tail) {
+            val cur = queue[head++]
+            val x = cur % w
+            val y = cur / w
+            pushCenter(x - 1, y)
+            pushCenter(x + 1, y)
+            pushCenter(x, y - 1)
+            pushCenter(x, y + 1)
+        }
+        // 安全校验：如果中心白色区域面积合理（占整图 4% ~ 72%），则自动掏空为透明内窗
+        val ratio = tail.toFloat() / (w * h).toFloat()
+        if (ratio in 0.04f..0.72f) {
+            for (i in 0 until tail) {
+                pixels[queue[i]] = 0x00000000
+            }
+        }
+    }
+
+    // 计算有效异形外框的边界盒，推算最安全的内胆区域，防止柄图在四角外溢
+    var minX = w
+    var maxX = 0
+    var minY = h
+    var maxY = 0
+    for (y in 0 until h) {
+        for (x in 0 until w) {
+            if (getAlpha(pixels[y * w + x]) > 40) {
+                if (x < minX) minX = x
+                if (x > maxX) maxX = x
+                if (y < minY) minY = y
+                if (y > maxY) maxY = y
+            }
+        }
+    }
+    if (minX >= maxX || minY >= maxY) {
+        minX = 0; maxX = w - 1; minY = 0; maxY = h - 1
+    }
+
+    val outBmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    outBmp.setPixels(pixels, 0, w, 0, 0, w, h)
+
+    val boxW = (maxX - minX + 1).toFloat() / w.toFloat()
+    val boxH = (maxY - minY + 1).toFloat() / h.toFloat()
+    val insetX = boxW * 0.08f
+    val insetY = boxH * 0.08f
+
+    return ProcessedBajiFrame(
+        imageBitmap = outBmp.asImageBitmap(),
+        aspectRatio = (w.toFloat() / h.toFloat()).coerceIn(0.55f, 1.80f),
+        innerLeftFraction = ((minX.toFloat() / w.toFloat()) + insetX).coerceIn(0.05f, 0.45f),
+        innerTopFraction = ((minY.toFloat() / h.toFloat()) + insetY).coerceIn(0.05f, 0.45f),
+        innerWidthFraction = (boxW - insetX * 2f).coerceIn(0.35f, 0.92f),
+        innerHeightFraction = (boxH - insetY * 2f).coerceIn(0.35f, 0.92f),
+    )
+}
+
+private fun buildBajiHeartPath(width: Float, height: Float): androidx.compose.ui.graphics.Path {
+    return androidx.compose.ui.graphics.Path().apply {
+        val w = width
+        val h = height
+        moveTo(w * 0.50f, h * 0.92f)
+        cubicTo(w * 0.12f, h * 0.68f, -w * 0.02f, h * 0.34f, w * 0.22f, h * 0.14f)
+        cubicTo(w * 0.36f, h * 0.03f, w * 0.50f, h * 0.15f, w * 0.50f, h * 0.26f)
+        cubicTo(w * 0.50f, h * 0.15f, w * 0.64f, h * 0.03f, w * 0.78f, h * 0.14f)
+        cubicTo(w * 1.02f, h * 0.34f, w * 0.88f, h * 0.68f, w * 0.50f, h * 0.92f)
+        close()
+    }
+}
+
+private fun buildBajiStarPath(width: Float, height: Float): androidx.compose.ui.graphics.Path {
+    return androidx.compose.ui.graphics.Path().apply {
+        val cx = width / 2f
+        val cy = height / 2f
+        val outerR = minOf(width, height) * 0.48f
+        val innerR = outerR * 0.52f
+        for (i in 0 until 10) {
+            val angle = Math.toRadians((-90.0 + i * 36.0))
+            val r = if (i % 2 == 0) outerR else innerR
+            val x = cx + (r * kotlin.math.cos(angle)).toFloat()
+            val y = cy + (r * kotlin.math.sin(angle)).toFloat()
+            if (i == 0) moveTo(x, y) else lineTo(x, y)
+        }
+        close()
+    }
+}
+
+private fun resolveBajiInnerShape(shapeMode: String, frameType: String): androidx.compose.ui.graphics.Shape {
+    val effective = if (shapeMode == "auto") {
+        when (frameType) {
+            "angel", "sweetie" -> "circle"
+            "custom" -> "rounded_rect"
+            else -> "circle"
+        }
+    } else shapeMode
+
+    return when (effective) {
+        "rounded_rect" -> RoundedCornerShape(percent = 22)
+        "full" -> RoundedCornerShape(percent = 8)
+        "heart" -> androidx.compose.ui.graphics.GenericShape { size, _ ->
+            addPath(buildBajiHeartPath(size.width, size.height))
+        }
+        "star" -> androidx.compose.ui.graphics.GenericShape { size, _ ->
+            addPath(buildBajiStarPath(size.width, size.height))
+        }
+        else -> CircleShape
+    }
+}
+
 @Composable
 private fun DreamBajiBadgeWidget(
     bubble: DreamBubbleItem,
     palette: me.rerere.rikkahub.ui.theme.KittenPaletteSpec,
     assetColorFilter: androidx.compose.ui.graphics.ColorFilter?,
     onClick: () -> Unit,
-    onEditBajiClick: (() -> Unit)? = null,
 ) {
-    val sizeDp = bubble.bajiSizeDp.coerceIn(52f, 210f).dp
+    val baseSize = bubble.bajiSizeDp.coerceIn(52f, 210f)
     val innerBitmap = remember(bubble.innerImagePath) {
         if (bubble.innerImagePath.isNotBlank() && File(bubble.innerImagePath).exists()) {
             BitmapFactory.decodeFile(bubble.innerImagePath)?.asImageBitmap()
         } else null
     }
-    val customFrameBitmap = remember(bubble.customFramePath) {
-        if (bubble.customFramePath.isNotBlank() && File(bubble.customFramePath).exists()) {
-            BitmapFactory.decodeFile(bubble.customFramePath)?.asImageBitmap()
+    val processedCustomFrame = remember(bubble.customFramePath) {
+        if (bubble.customFramePath.isNotBlank()) {
+            loadAndProcessCustomBajiFrame(bubble.customFramePath)
         } else null
     }
 
-    val innerCircleRatio = when (bubble.frameType) {
+    // 支持非 1:1 的异形吧唧宽高比（如长条形、拓麻歌子蛋形、横向爱心形）
+    val frameAspect = if (bubble.frameType == "custom" && processedCustomFrame != null) {
+        processedCustomFrame.aspectRatio
+    } else 1f
+
+    val boxWidthDp = if (frameAspect >= 1f) baseSize.dp else (baseSize * frameAspect).dp
+    val boxHeightDp = if (frameAspect <= 1f) baseSize.dp else (baseSize / frameAspect).dp
+
+    val defaultRatio = when (bubble.frameType) {
         "angel" -> 0.80f
         "sweetie" -> 0.72f
+        "custom" -> 0.78f
         else -> 0.90f
+    }
+    val userScale = if (bubble.innerScale in 0.40f..1.20f) bubble.innerScale else defaultRatio
+    val innerShape = remember(bubble.innerShapeMode, bubble.frameType) {
+        resolveBajiInnerShape(bubble.innerShapeMode, bubble.frameType)
     }
 
     Column(
@@ -3117,24 +3739,31 @@ private fun DreamBajiBadgeWidget(
     ) {
         Box(
             modifier = Modifier
-                .size(sizeDp)
+                .size(width = boxWidthDp, height = boxHeightDp)
                 .clickable { onClick() },
             contentAlignment = Alignment.Center,
         ) {
+            val innerW = boxWidthDp * userScale
+            val innerH = boxHeightDp * userScale
+            val offsetXDp = boxWidthDp * bubble.innerOffsetX.coerceIn(-0.35f, 0.35f)
+            val offsetYDp = boxHeightDp * bubble.innerOffsetY.coerceIn(-0.35f, 0.35f)
+
             if (innerBitmap != null) {
                 Image(
                     bitmap = innerBitmap,
                     contentDescription = bubble.title,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(sizeDp * innerCircleRatio)
-                        .clip(CircleShape),
+                        .offset(x = offsetXDp, y = offsetYDp)
+                        .size(width = innerW, height = innerH)
+                        .clip(innerShape),
                 )
             } else if (bubble.frameType != "angel") {
                 Box(
                     modifier = Modifier
-                        .size(sizeDp * innerCircleRatio)
-                        .clip(CircleShape)
+                        .offset(x = offsetXDp, y = offsetYDp)
+                        .size(width = innerW, height = innerH)
+                        .clip(innerShape)
                         .background(
                             Brush.verticalGradient(
                                 listOf(palette.softContainer, Color.White, palette.softContainer)
@@ -3168,10 +3797,10 @@ private fun DreamBajiBadgeWidget(
                     )
                 }
                 "custom" -> {
-                    if (customFrameBitmap != null) {
+                    if (processedCustomFrame != null) {
                         Image(
-                            bitmap = customFrameBitmap,
-                            contentDescription = "自定义电子吧唧外框",
+                            bitmap = processedCustomFrame.imageBitmap,
+                            contentDescription = "自定义异形电子吧唧外框",
                             contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize(),
                         )
@@ -3182,49 +3811,40 @@ private fun DreamBajiBadgeWidget(
             if (bubble.finishEffect != "matte" || bubble.frameType == "glossy_tin") {
                 Canvas(
                     modifier = Modifier
-                        .size(sizeDp * innerCircleRatio)
-                        .clip(CircleShape)
+                        .offset(x = offsetXDp, y = offsetYDp)
+                        .size(width = innerW, height = innerH)
+                        .clip(innerShape)
                 ) {
-                    val r = size.minDimension / 2f
+                    val r = size.maxDimension / 1.8f
                     val center = Offset(size.width / 2f, size.height / 2f)
 
-                    drawCircle(
+                    drawRect(
                         brush = Brush.radialGradient(
                             0.0f to Color.Transparent,
-                            0.76f to Color.Transparent,
-                            0.92f to Color.Black.copy(alpha = 0.14f),
-                            1.0f to Color.Black.copy(alpha = 0.28f),
+                            0.74f to Color.Transparent,
+                            0.92f to Color.Black.copy(alpha = 0.13f),
+                            1.0f to Color.Black.copy(alpha = 0.25f),
                             center = center,
                             radius = r,
                         ),
-                        radius = r,
-                        center = center,
                     )
-                    drawCircle(
+                    drawRect(
                         brush = Brush.linearGradient(
-                            0.0f to Color.White.copy(alpha = 0.48f),
+                            0.0f to Color.White.copy(alpha = 0.45f),
                             0.38f to Color.White.copy(alpha = 0.08f),
                             0.6f to Color.Transparent,
                             1.0f to Color.White.copy(alpha = 0.16f),
                             start = Offset(0f, 0f),
                             end = Offset(size.width, size.height),
                         ),
-                        radius = r,
-                        center = center,
-                    )
-                    drawCircle(
-                        color = Color.White.copy(alpha = 0.75f),
-                        radius = r - 1.5.dp.toPx(),
-                        center = center,
-                        style = Stroke(width = 2.dp.toPx()),
                     )
 
                     if (bubble.finishEffect == "sparkle") {
                         val starPoints = listOf(
-                            Offset(r * 0.55f, r * 0.50f),
-                            Offset(r * 1.45f, r * 0.65f),
-                            Offset(r * 0.60f, r * 1.42f),
-                            Offset(r * 1.38f, r * 1.35f),
+                            Offset(size.width * 0.26f, size.height * 0.24f),
+                            Offset(size.width * 0.74f, size.height * 0.30f),
+                            Offset(size.width * 0.28f, size.height * 0.72f),
+                            Offset(size.width * 0.70f, size.height * 0.68f),
                         )
                         starPoints.forEach { pt ->
                             drawCircle(
@@ -3240,8 +3860,9 @@ private fun DreamBajiBadgeWidget(
             if (innerBitmap == null && bubble.bajiSizeDp >= 90f) {
                 Column(
                     modifier = Modifier
-                        .width(sizeDp * 0.58f)
-                        .padding(top = 8.dp),
+                        .offset(x = offsetXDp, y = offsetYDp)
+                        .width(innerW * 0.76f)
+                        .padding(top = 4.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
@@ -3260,27 +3881,6 @@ private fun DreamBajiBadgeWidget(
                         textAlign = TextAlign.Center,
                         maxLines = 1,
                     )
-                }
-            }
-
-            if (onEditBajiClick != null) {
-                Surface(
-                    shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.92f),
-                    border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.5f)),
-                    shadowElevation = 3.dp,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(2.dp)
-                        .size(26.dp)
-                        .clickable { onEditBajiClick() },
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "✨",
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
                 }
             }
         }
