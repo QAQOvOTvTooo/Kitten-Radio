@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -62,9 +63,9 @@ fun KittenRetroToaster(
         contentColor = { palette.textPrimary },
         shadowAmbientColor = Color.Transparent,
         shadowSpotColor = Color.Transparent,
-        border = { null },
+        border = { BorderStroke(0.dp, Color.Transparent) },
         background = {
-            // 隐藏默认绿色/白色气泡底板，完全由 messageSlot 中的图二千禧复古窗口渲染
+            Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
         },
         iconSlot = {
             // 移除原本左侧的绿色勾勾图标
