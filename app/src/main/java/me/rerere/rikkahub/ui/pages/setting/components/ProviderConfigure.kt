@@ -20,6 +20,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -91,7 +93,45 @@ fun ProviderConfigure(
                 ProviderConfigureClaude(provider, onEdit)
             }
         }
+
+    // 复刻 RikkaHub「回传历史思考过程」卡片开关（控制是否将之前的思考过程一并发送给模型，关闭可大幅节省 Token）
+    Surface(
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            modifier = Modifier.fillMaxWidth(),
+    ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "回传历史思考过程",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = "关闭后仅保留思考链在本地显示，不再随历史上下文重复回传给模型，大幅节省 Token",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = provider.sendHistoryReasoning,
+                    onCheckedChange = { checked ->
+                        val updated = when (provider) {
+                            is ProviderSetting.OpenAI -> provider.copy(sendHistoryReasoning = checked)
+                            is ProviderSetting.Google -> provider.copy(sendHistoryReasoning = checked)
+                            is ProviderSetting.Claude -> provider.copy(sendHistoryReasoning = checked)
+                        }
+                        onEdit(updated)
+                    }
+                )
+            }
     }
+}
 }
 
 fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSetting {
@@ -129,7 +169,8 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             description = this.description,
             shortDescription = this.shortDescription,
             apiKey = apiKey,
-            baseUrl = convertedBaseUrl
+            baseUrl = convertedBaseUrl,
+            sendHistoryReasoning = this.sendHistoryReasoning,
         )
 
         ProviderSetting.Google::class -> ProviderSetting.Google(
@@ -142,7 +183,8 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             description = this.description,
             shortDescription = this.shortDescription,
             apiKey = apiKey,
-            baseUrl = convertedBaseUrl
+            baseUrl = convertedBaseUrl,
+            sendHistoryReasoning = this.sendHistoryReasoning,
         )
 
         ProviderSetting.Claude::class -> ProviderSetting.Claude(
@@ -155,7 +197,8 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             description = this.description,
             shortDescription = this.shortDescription,
             apiKey = apiKey,
-            baseUrl = convertedBaseUrl
+            baseUrl = convertedBaseUrl,
+            sendHistoryReasoning = this.sendHistoryReasoning,
         )
 
         else -> error("Unsupported provider type: $type")

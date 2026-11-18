@@ -400,7 +400,7 @@ class ChatCompletionsAPI(
         val host = providerSetting.baseUrl.toHttpUrl().host
         return buildJsonObject {
             put("model", params.model.modelId)
-            put("messages", buildMessages(messages, params.model))
+            put("messages", buildMessages(messages, params.model, providerSetting.sendHistoryReasoning))
 
             // 智谱 GLM 等 thinking 模型在开启深度思考时不允许设置 temperature/top_p,
             // 否则触发 "Invalid request body" (InvalidParameter) 400。
@@ -587,7 +587,11 @@ class ChatCompletionsAPI(
         return !ModelRegistry.OPENAI_O_MODELS.match(model.modelId) && !ModelRegistry.GPT_5.match(model.modelId)
     }
 
-    private fun buildMessages(messages: List<UIMessage>, model: Model) = buildJsonArray {
+    private fun buildMessages(
+        messages: List<UIMessage>,
+        model: Model,
+        sendHistoryReasoning: Boolean = false,
+    ) = buildJsonArray {
         val filteredMessages = messages.filter { it.isValidToUpload() }
         // 纯文本模型 (如 GLM-5.2) 不接受 image_url, 收到会报 "Model only support text input"。
         // OcrTransformer 只覆盖 file: 图片, http/base64 图片会漏网; 这里在序列化层兜底,
@@ -596,7 +600,7 @@ class ChatCompletionsAPI(
 
         filteredMessages.forEach { message ->
             if (message.role == MessageRole.ASSISTANT) {
-                addAssistantMessages(message, includeReasoning = true, supportsImage = supportsImage)
+                addAssistantMessages(message, includeReasoning = sendHistoryReasoning, supportsImage = supportsImage)
             } else {
                 addNonAssistantMessage(message, supportsImage = supportsImage)
             }

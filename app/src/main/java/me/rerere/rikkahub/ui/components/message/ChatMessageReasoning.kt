@@ -113,7 +113,7 @@ enum class ReasoningViewMode {
  * 思考链自动中文化与“老公心声还原”管理器（带内存 + 本地 SharedPreferences 双重持久化缓存）
  * 完全独立于聊天上下文，0 Token 负担，不分散模型回复时的注意力。
  */
-private object ReasoningTranslator {
+internal object ReasoningTranslator {
     private const val PREF_NAME = "xiaomao_reasoning_zh_cache"
     private val memoryCache = ConcurrentHashMap<String, String>()
     private val voiceRestoredSet = ConcurrentHashMap.newKeySet<String>()

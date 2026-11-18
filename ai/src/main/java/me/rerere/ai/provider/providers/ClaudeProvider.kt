@@ -278,7 +278,12 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
             put("model", params.model.modelId)
             put(
                 "messages",
-                buildMessages(messages, providerSetting.promptCaching, providerSetting.promptCacheTtl)
+                buildMessages(
+                    messages = messages,
+                    promptCaching = providerSetting.promptCaching,
+                    promptCacheTtl = providerSetting.promptCacheTtl,
+                    sendHistoryReasoning = providerSetting.sendHistoryReasoning,
+                )
             )
             put("max_tokens", params.maxTokens ?: 64_000)
 
@@ -361,13 +366,14 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
     private fun buildMessages(
         messages: List<UIMessage>,
         promptCaching: Boolean,
-        promptCacheTtl: ClaudePromptCacheTtl
+        promptCacheTtl: ClaudePromptCacheTtl,
+        sendHistoryReasoning: Boolean = false,
     ) = buildJsonArray {
         messages
             .filter { it.isValidToUpload() && it.role != MessageRole.SYSTEM }
             .forEach { message ->
                 if (message.role == MessageRole.ASSISTANT) {
-                    addAssistantMessage(message)
+                    addAssistantMessage(message, sendHistoryReasoning)
                 } else {
                     addUserMessage(message)
                 }
@@ -418,14 +424,20 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         })
     }
 
-    private fun JsonArrayBuilder.addAssistantMessage(message: UIMessage) {
+    private fun JsonArrayBuilder.addAssistantMessage(
+        message: UIMessage,
+        sendHistoryReasoning: Boolean = false,
+    ) {
         val groups = groupPartsByToolBoundary(message.parts)
         val contentBuffer = mutableListOf<JsonObject>()
 
         for (group in groups) {
             when (group) {
                 is PartGroup.Content -> {
-                    group.parts.mapNotNull { it.toContentBlock() }.forEach { contentBuffer.add(it) }
+                    group.parts
+                        .filter { sendHistoryReasoning || it !is UIMessagePart.Reasoning }
+                        .mapNotNull { it.toContentBlock() }
+                        .forEach { contentBuffer.add(it) }
                 }
 
                 is PartGroup.Tools -> {

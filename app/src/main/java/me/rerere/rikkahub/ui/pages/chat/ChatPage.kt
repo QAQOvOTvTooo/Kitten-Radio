@@ -929,7 +929,7 @@ private fun TopBar(
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.Center,
                         ) {
                             Text(
                                 text = partnerDisplayName,
@@ -939,18 +939,6 @@ private fun TopBar(
                                     color = palette.textPrimary,
                                 ),
                                 overflow = TextOverflow.Ellipsis,
-                            )
-                            // Sweet Chat 同款小爱心，随主题色变化
-                            Text(
-                                text = "♥",
-                                color = palette.primary,
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                            Icon(
-                                imageVector = if (showTitlePopup) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = palette.textSecondary,
                             )
                         }
                     }
@@ -1096,11 +1084,11 @@ private fun TopBar(
         },
     )
 
-        // Sweet Chat 同款：云朵弧形下边缘 + 波浪丝带 + 6个随主题变色的垂挂小吊饰（★ 🎀 ⚡ ☆ 💗 ✞）
+        // Sweet Chat 方案B升级版：加粗双层云朵幕布折边 + 错落星蝶椭圆珠链 + 6个精致吊饰（★ 🎀 🌙✦ ☆ 💗 ❄️）
         val infiniteCharm = androidx.compose.animation.core.rememberInfiniteTransition(label = "charmSway")
         val swayDeg by infiniteCharm.animateFloat(
-            initialValue = -3.5f,
-            targetValue = 3.5f,
+            initialValue = -2.2f,
+            targetValue = 2.2f,
             animationSpec = androidx.compose.animation.core.infiniteRepeatable(
                 animation = androidx.compose.animation.core.tween(2400, easing = androidx.compose.animation.core.LinearEasing),
                 repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
@@ -1110,21 +1098,440 @@ private fun TopBar(
         androidx.compose.foundation.Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
+                .height(86.dp)
                 .clickable {
                     toaster.show(charmQuotes.random(), type = ToastType.Success)
                 }
         ) {
             val w = size.width
-            val cloudBaseY = 9.dp.toPx()
-            val cloudSag = 14.dp.toPx()
+            val segs = 4
+            val segW = w / segs
+            val cloudBaseY = 4.dp.toPx()
+            val cloudSag = 18.dp.toPx()
+            val whiteGap = 2.6.dp.toPx()
+            val bandThick = 10.5.dp.toPx()
 
+            fun getCloudEdgeY(x: Float): Float {
+                val idx = (x / segW).toInt().coerceIn(0, segs - 1)
+                val t = ((x - idx * segW) / segW).coerceIn(0f, 1f)
+                return cloudBaseY + 2f * (1f - t) * t * cloudSag
+            }
+
+            fun drawMiniBow(cx: Float, cy: Float, r: Float, color: Color) {
+                val p = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(cx, cy)
+                    quadraticBezierTo(cx - r * 1.6f, cy - r * 1.1f, cx - r * 1.35f, cy - r * 0.15f)
+                    quadraticBezierTo(cx - r * 1.1f, cy + r * 0.1f, cx, cy)
+                    moveTo(cx, cy)
+                    quadraticBezierTo(cx - r * 1.4f, cy + r * 0.25f, cx - r * 1.1f, cy + r * 0.95f)
+                    quadraticBezierTo(cx - r * 0.5f, cy + r * 0.85f, cx, cy)
+                    moveTo(cx, cy)
+                    quadraticBezierTo(cx + r * 1.6f, cy - r * 1.1f, cx + r * 1.35f, cy - r * 0.15f)
+                    quadraticBezierTo(cx + r * 1.1f, cy + r * 0.1f, cx, cy)
+                    moveTo(cx, cy)
+                    quadraticBezierTo(cx + r * 1.4f, cy + r * 0.25f, cx + r * 1.1f, cy + r * 0.95f)
+                    quadraticBezierTo(cx + r * 0.5f, cy + r * 0.85f, cx, cy)
+                    close()
+                }
+                drawPath(p, color = color)
+                drawCircle(color = color, radius = r * 0.36f, center = androidx.compose.ui.geometry.Offset(cx, cy))
+            }
+
+            fun drawMiniStar(cx: Float, cy: Float, r: Float, color: Color) {
+                val p = androidx.compose.ui.graphics.Path().apply {
+                    for (i in 0 until 10) {
+                        val rad = if (i % 2 == 0) r else r * 0.48f
+                        val ang = Math.toRadians((i * 36.0) - 90.0)
+                        val px = cx + (rad * Math.cos(ang)).toFloat()
+                        val py = cy + (rad * Math.sin(ang)).toFloat()
+                        if (i == 0) moveTo(px, py) else lineTo(px, py)
+                    }
+                    close()
+                }
+                drawPath(p, color = color)
+            }
+
+            // 1. 先绘制悬挂在幕布下的 6 根错落珠链与精致吊饰（挂绳顶端自然藏在云朵帘幕背后）
+            val charmXs = listOf(0.080f, 0.245f, 0.415f, 0.585f, 0.755f, 0.920f)
+            val charmLensDp = listOf(21.5f, 47.0f, 17.5f, 36.0f, 25.5f, 19.0f) // 方案B 135% 错落比例
+
+            charmXs.forEachIndexed { idx, frac ->
+                val baseX = w * frac
+                val edgeY = getCloudEdgeY(baseX)
+                val ribbonBottomY = edgeY + whiteGap + bandThick
+                val topAnchorY = ribbonBottomY - 2.dp.toPx()
+
+                val cx = baseX + (if (idx % 2 == 0) swayDeg else -swayDeg) * 0.75f
+                val botY = ribbonBottomY + charmLensDp[idx].dp.toPx()
+                val totalLen = botY - topAnchorY
+
+                // 挂绳绘制
+                if (idx == 2) {
+                    // 3号月亮专属：图3同款椭圆扣环链 + 中间实心圆珠
+                    val step = 3.8.dp.toPx()
+                    val count = (totalLen / step).toInt()
+                    val midIdx = count / 2
+                    for (i in 1 until count) {
+                        val py = topAnchorY + i * step
+                        if (i == midIdx) {
+                            drawCircle(
+                                color = palette.secondary,
+                                radius = 1.8.dp.toPx(),
+                                center = androidx.compose.ui.geometry.Offset(cx, py)
+                            )
+                        } else {
+                            drawOval(
+                                color = palette.secondary,
+                                topLeft = androidx.compose.ui.geometry.Offset(cx - 1.05.dp.toPx(), py - 1.65.dp.toPx()),
+                                size = androidx.compose.ui.geometry.Size(2.1.dp.toPx(), 3.3.dp.toPx()),
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.05.dp.toPx())
+                            )
+                        }
+                    }
+                } else {
+                    drawLine(
+                        color = palette.secondary.copy(alpha = 0.35f),
+                        start = androidx.compose.ui.geometry.Offset(cx, topAnchorY),
+                        end = androidx.compose.ui.geometry.Offset(cx, botY),
+                        strokeWidth = 1.1.dp.toPx()
+                    )
+                    val step = 3.6.dp.toPx()
+                    val count = (totalLen / step).toInt()
+                    for (i in 1 until count) {
+                        val py = topAnchorY + i * step
+                        val isBig = i % 2 == 0
+                        drawCircle(
+                            color = if (isBig) palette.secondary else palette.secondary.copy(alpha = 0.55f),
+                            radius = if (isBig) 1.35.dp.toPx() else 0.85.dp.toPx(),
+                            center = androidx.compose.ui.geometry.Offset(cx, py)
+                        )
+                    }
+                    when (idx) {
+                        1 -> {
+                            drawMiniBow(cx, topAnchorY + totalLen * 0.28f, 3.6.dp.toPx(), palette.primary)
+                            drawMiniStar(cx, topAnchorY + totalLen * 0.68f, 3.2.dp.toPx(), palette.secondary)
+                        }
+                        3 -> {
+                            drawMiniBow(cx, topAnchorY + totalLen * 0.34f, 3.6.dp.toPx(), palette.secondary)
+                        }
+                        4 -> {
+                            drawMiniStar(cx, topAnchorY + totalLen * 0.48f, 3.2.dp.toPx(), palette.primary)
+                        }
+                        5 -> {
+                            drawMiniBow(cx, topAnchorY + totalLen * 0.36f, 3.2.dp.toPx(), palette.primary)
+                            drawOval(
+                                color = palette.secondary,
+                                topLeft = androidx.compose.ui.geometry.Offset(cx - 1.3.dp.toPx(), botY - 4.5.dp.toPx()),
+                                size = androidx.compose.ui.geometry.Size(2.6.dp.toPx(), 4.8.dp.toPx())
+                            )
+                        }
+                    }
+                }
+
+                // 底部主吊坠绘制
+                when (idx) {
+                    0 -> {
+                        // 1号：饱满圆润胖星星
+                        val r = 9.5.dp.toPx()
+                        val cy = botY + r * 0.78f
+                        val pts = List(10) { i ->
+                            val rad = if (i % 2 == 0) r else r * 0.54f
+                            val ang = Math.toRadians((i * 36.0) - 90.0)
+                            androidx.compose.ui.geometry.Offset(
+                                cx + (rad * Math.cos(ang)).toFloat(),
+                                cy + (rad * Math.sin(ang)).toFloat()
+                            )
+                        }
+                        val starPath = androidx.compose.ui.graphics.Path().apply {
+                            val mid0 = androidx.compose.ui.geometry.Offset((pts[9].x + pts[0].x) / 2f, (pts[9].y + pts[0].y) / 2f)
+                            moveTo(mid0.x, mid0.y)
+                            for (i in 0 until 10) {
+                                val next = pts[(i + 1) % 10]
+                                val mid = androidx.compose.ui.geometry.Offset((pts[i].x + next.x) / 2f, (pts[i].y + next.y) / 2f)
+                                quadraticBezierTo(pts[i].x, pts[i].y, mid.x, mid.y)
+                            }
+                            close()
+                        }
+                        drawPath(starPath, color = palette.secondary.copy(alpha = 0.88f))
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.5f),
+                            radius = r * 0.14f,
+                            center = androidx.compose.ui.geometry.Offset(cx - r * 0.22f, cy - r * 0.26f)
+                        )
+                    }
+                    1 -> {
+                        // 2号：立体双飘带蝴蝶结
+                        val r = 13.5.dp.toPx()
+                        val cy = botY + r * 0.62f
+                        val leftTail = androidx.compose.ui.graphics.Path().apply {
+                            moveTo(cx - r * 0.12f, cy + r * 0.05f)
+                            quadraticBezierTo(cx - r * 0.55f, cy + r * 0.55f, cx - r * 0.82f, cy + r * 1.15f)
+                            lineTo(cx - r * 0.54f, cy + r * 0.98f)
+                            lineTo(cx - r * 0.42f, cy + r * 1.22f)
+                            quadraticBezierTo(cx - r * 0.18f, cy + r * 0.65f, cx - r * 0.02f, cy + r * 0.15f)
+                            close()
+                        }
+                        val rightTail = androidx.compose.ui.graphics.Path().apply {
+                            moveTo(cx + r * 0.12f, cy + r * 0.05f)
+                            quadraticBezierTo(cx + r * 0.55f, cy + r * 0.55f, cx + r * 0.82f, cy + r * 1.15f)
+                            lineTo(cx + r * 0.54f, cy + r * 0.98f)
+                            lineTo(cx + r * 0.42f, cy + r * 1.22f)
+                            quadraticBezierTo(cx + r * 0.18f, cy + r * 0.65f, cx + r * 0.02f, cy + r * 0.15f)
+                            close()
+                        }
+                        drawPath(leftTail, color = palette.primary)
+                        drawPath(rightTail, color = palette.primary)
+
+                        val wings = androidx.compose.ui.graphics.Path().apply {
+                            moveTo(cx, cy)
+                            cubicTo(cx - r * 0.45f, cy - r * 0.72f, cx - r * 1.25f, cy - r * 0.68f, cx - r * 1.18f, cy - r * 0.02f)
+                            cubicTo(cx - r * 1.15f, cy + r * 0.58f, cx - r * 0.42f, cy + r * 0.45f, cx, cy + r * 0.08f)
+                            moveTo(cx, cy)
+                            cubicTo(cx + r * 0.45f, cy - r * 0.72f, cx + r * 1.25f, cy - r * 0.68f, cx + r * 1.18f, cy - r * 0.02f)
+                            cubicTo(cx + r * 1.15f, cy + r * 0.58f, cx + r * 0.42f, cy + r * 0.45f, cx, cy + r * 0.08f)
+                            close()
+                        }
+                        drawPath(wings, color = palette.primary)
+                        drawCircle(color = palette.accent, radius = r * 0.25f, center = androidx.compose.ui.geometry.Offset(cx, cy + r * 0.02f))
+                        drawCircle(color = Color.White.copy(alpha = 0.65f), radius = r * 0.08f, center = androidx.compose.ui.geometry.Offset(cx - r * 0.06f, cy - r * 0.05f))
+                    }
+                    2 -> {
+                        // 3号（v4精修）：双正圆几何相交的经典 🌙 月牙形状（告别吃豆人）+ 挂链缀在顶部圆弧脊背 + 十字星
+                        val r = 11.2.dp.toPx()
+                        val cy = botY + r * 0.85f
+                        drawCircle(
+                            color = palette.secondary,
+                            radius = 1.45.dp.toPx(),
+                            center = androidx.compose.ui.geometry.Offset(cx, cy - r * 0.88f),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.15.dp.toPx())
+                        )
+                        val o1x = cx + r * 0.06f
+                        val o1y = cy + r * 0.02f
+                        val r1 = r * 0.86f
+                        val o2x = cx + r * 0.42f
+                        val o2y = cy - r * 0.06f
+                        val r2 = r * 0.73f
+                        val moonPath = androidx.compose.ui.graphics.Path().apply {
+                            val outerPath = androidx.compose.ui.graphics.Path().apply {
+                                addOval(androidx.compose.ui.geometry.Rect(o1x - r1, o1y - r1, o1x + r1, o1y + r1))
+                            }
+                            val innerPath = androidx.compose.ui.graphics.Path().apply {
+                                addOval(androidx.compose.ui.geometry.Rect(o2x - r2, o2y - r2, o2x + r2, o2y + r2))
+                            }
+                            op(outerPath, innerPath, androidx.compose.ui.graphics.PathOperation.Difference)
+                        }
+                        drawPath(moonPath, color = palette.secondary)
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.48f),
+                            radius = r * 0.10f,
+                            center = androidx.compose.ui.geometry.Offset(cx - r * 0.44f, cy - r * 0.16f)
+                        )
+                        // 弯月怀抱里的锐利十字星
+                        val sx = cx + r * 0.36f
+                        val sy = cy + r * 0.02f
+                        val srLong = r * 0.45f
+                        val srShort = r * 0.115f
+                        val crossStar = androidx.compose.ui.graphics.Path().apply {
+                            moveTo(sx, sy - srLong)
+                            lineTo(sx + srShort, sy - srShort)
+                            lineTo(sx + srLong, sy)
+                            lineTo(sx + srShort, sy + srShort)
+                            lineTo(sx, sy + srLong)
+                            lineTo(sx - srShort, sy + srShort)
+                            lineTo(sx - srLong, sy)
+                            lineTo(sx - srShort, sy - srShort)
+                            close()
+                        }
+                        drawPath(crossStar, color = palette.primary)
+                        drawCircle(color = Color.White, radius = r * 0.075f, center = androidx.compose.ui.geometry.Offset(sx, sy))
+                    }
+                    3 -> {
+                        // 4号（v3恢复原版）：圆润可爱的空心甜心星
+                        val r = 10.5.dp.toPx()
+                        val cy = botY + r * 0.78f
+                        val pts = List(10) { i ->
+                            val rad = if (i % 2 == 0) r else r * 0.54f
+                            val ang = Math.toRadians((i * 36.0) - 90.0)
+                            androidx.compose.ui.geometry.Offset(
+                                cx + (rad * Math.cos(ang)).toFloat(),
+                                cy + (rad * Math.sin(ang)).toFloat()
+                            )
+                        }
+                        val hollowStar = androidx.compose.ui.graphics.Path().apply {
+                            val mid0 = androidx.compose.ui.geometry.Offset((pts[9].x + pts[0].x) / 2f, (pts[9].y + pts[0].y) / 2f)
+                            moveTo(mid0.x, mid0.y)
+                            for (i in 0 until 10) {
+                                val next = pts[(i + 1) % 10]
+                                val mid = androidx.compose.ui.geometry.Offset((pts[i].x + next.x) / 2f, (pts[i].y + next.y) / 2f)
+                                quadraticBezierTo(pts[i].x, pts[i].y, mid.x, mid.y)
+                            }
+                            close()
+                        }
+                        drawPath(hollowStar, color = Color.White)
+                        drawPath(
+                            hollowStar,
+                            color = palette.primary,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.6.dp.toPx())
+                        )
+                        drawCircle(
+                            color = palette.primary,
+                            radius = r * 0.16f,
+                            center = androidx.compose.ui.geometry.Offset(cx, cy)
+                        )
+                    }
+                    4 -> {
+                        // 5号（v4精修）：参考经典 ❤️ 黄金比例，双肩圆润饱满、下尖收束自然（不扁也不瘦）
+                        val r = 11.5.dp.toPx()
+                        val cy = botY + r * 0.78f
+                        fun classicHeartPath(scale: Float, yOff: Float = 0f): androidx.compose.ui.graphics.Path = androidx.compose.ui.graphics.Path().apply {
+                            val hr = r * scale
+                            val hy = cy + yOff
+                            moveTo(cx, hy + hr * 0.92f)
+                            cubicTo(cx - hr * 1.26f, hy + hr * 0.20f, cx - hr * 0.96f, hy - hr * 1.00f, cx, hy - hr * 0.30f)
+                            cubicTo(cx + hr * 0.96f, hy - hr * 1.00f, cx + hr * 1.26f, hy + hr * 0.20f, cx, hy + hr * 0.92f)
+                            close()
+                        }
+                        drawPath(classicHeartPath(1.06f), color = palette.secondary.copy(alpha = 0.85f))
+                        drawPath(classicHeartPath(0.56f, r * 0.04f), color = palette.primary.copy(alpha = 0.88f))
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.52f),
+                            radius = r * 0.11f,
+                            center = androidx.compose.ui.geometry.Offset(cx - r * 0.38f, cy - r * 0.34f)
+                        )
+                    }
+                    5 -> {
+                        // 6号（新）：图2同款精致六角晶钻小雪花
+                        val r = 11.0.dp.toPx()
+                        val cy = botY + r * 0.88f
+                        // 双层六边形冰晶内网
+                        listOf(0.28f, 0.46f).forEachIndexed { hIdx, ratio ->
+                            val hr = r * ratio
+                            val hexPath = androidx.compose.ui.graphics.Path().apply {
+                                for (i in 0 until 6) {
+                                    val ang = Math.toRadians((i * 60.0) - 90.0)
+                                    val px = cx + (hr * Math.cos(ang)).toFloat()
+                                    val py = cy + (hr * Math.sin(ang)).toFloat()
+                                    if (i == 0) moveTo(px, py) else lineTo(px, py)
+                                }
+                                close()
+                            }
+                            drawPath(
+                                hexPath,
+                                color = if (hIdx == 0) palette.primary else palette.secondary.copy(alpha = 0.55f),
+                                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.0.dp.toPx())
+                            )
+                        }
+                        // 六根主晶轴 + 分叉圆珠顶梢
+                        for (i in 0 until 6) {
+                            val ang = Math.toRadians((i * 60.0) - 90.0)
+                            val cosA = Math.cos(ang).toFloat()
+                            val sinA = Math.sin(ang).toFloat()
+                            val tipX = cx + r * cosA
+                            val tipY = cy + r * sinA
+                            drawLine(
+                                color = palette.secondary,
+                                start = androidx.compose.ui.geometry.Offset(cx, cy),
+                                end = androidx.compose.ui.geometry.Offset(tipX, tipY),
+                                strokeWidth = 1.5.dp.toPx(),
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round
+                            )
+                            drawCircle(
+                                color = palette.secondary,
+                                radius = r * 0.115f,
+                                center = androidx.compose.ui.geometry.Offset(tipX, tipY)
+                            )
+                            val branchBaseX = cx + r * 0.60f * cosA
+                            val branchBaseY = cy + r * 0.60f * sinA
+                            val branchLen = r * 0.34f
+                            listOf(-42.0, 42.0).forEach { offsetDeg ->
+                                val bAng = ang + Math.toRadians(offsetDeg)
+                                val bx = branchBaseX + (branchLen * Math.cos(bAng)).toFloat()
+                                val by = branchBaseY + (branchLen * Math.sin(bAng)).toFloat()
+                                drawLine(
+                                    color = palette.secondary,
+                                    start = androidx.compose.ui.geometry.Offset(branchBaseX, branchBaseY),
+                                    end = androidx.compose.ui.geometry.Offset(bx, by),
+                                    strokeWidth = 1.2.dp.toPx(),
+                                    cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                )
+                                drawCircle(
+                                    color = palette.primary,
+                                    radius = r * 0.095f,
+                                    center = androidx.compose.ui.geometry.Offset(bx, by)
+                                )
+                            }
+                        }
+                        drawCircle(color = Color.White, radius = r * 0.16f, center = androidx.compose.ui.geometry.Offset(cx, cy))
+                    }
+                }
+            }
+
+            // 2. 绘制图2同款加粗双层云朵幕布折边（浅粉宽幅帘幕带 + 纯白高光内衬线 + 顶栏实心云朵主体）
+            val curtainBandPath = androidx.compose.ui.graphics.Path().apply {
+                moveTo(0f, -2f)
+                lineTo(w, -2f)
+                lineTo(w, cloudBaseY + whiteGap + bandThick)
+                for (i in segs downTo 1) {
+                    val xStart = i * segW
+                    val xEnd = (i - 1) * segW
+                    val xMid = (xStart + xEnd) / 2f
+                    quadraticBezierTo(
+                        xMid,
+                        cloudBaseY + cloudSag + whiteGap + bandThick,
+                        xEnd,
+                        cloudBaseY + whiteGap + bandThick
+                    )
+                }
+                close()
+            }
+            drawPath(
+                path = curtainBandPath,
+                color = palette.primary.copy(alpha = 0.36f),
+            )
+            // 幕布底边柔粉描边线
+            val curtainBottomStroke = androidx.compose.ui.graphics.Path().apply {
+                moveTo(0f, cloudBaseY + whiteGap + bandThick)
+                for (i in 0 until segs) {
+                    val xStart = i * segW
+                    val xEnd = (i + 1) * segW
+                    val xMid = (xStart + xEnd) / 2f
+                    quadraticBezierTo(
+                        xMid,
+                        cloudBaseY + cloudSag + whiteGap + bandThick,
+                        xEnd,
+                        cloudBaseY + whiteGap + bandThick
+                    )
+                }
+            }
+            drawPath(
+                path = curtainBottomStroke,
+                color = palette.primary.copy(alpha = 0.72f),
+                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.4.dp.toPx())
+            )
+
+            // 中间层：纯白高光丝带内衬层
+            val whiteLinePath = androidx.compose.ui.graphics.Path().apply {
+                moveTo(0f, -2f)
+                lineTo(w, -2f)
+                lineTo(w, cloudBaseY + whiteGap)
+                for (i in segs downTo 1) {
+                    val xStart = i * segW
+                    val xEnd = (i - 1) * segW
+                    val xMid = (xStart + xEnd) / 2f
+                    quadraticBezierTo(xMid, cloudBaseY + cloudSag + whiteGap, xEnd, cloudBaseY + whiteGap)
+                }
+                close()
+            }
+            drawPath(
+                path = whiteLinePath,
+                color = Color.White,
+            )
+
+            // 最上层：100% 实心不透底云朵顶栏主体
             val cloudFillPath = androidx.compose.ui.graphics.Path().apply {
                 moveTo(0f, -2f)
                 lineTo(w, -2f)
                 lineTo(w, cloudBaseY)
-                val segs = 4
-                val segW = w / segs
                 for (i in segs downTo 1) {
                     val xStart = i * segW
                     val xEnd = (i - 1) * segW
@@ -1133,151 +1540,10 @@ private fun TopBar(
                 }
                 close()
             }
-            // 100% 实心不透底云朵主体（彻底遮挡上方壁纸与滑入云朵内部的聊天气泡，形成真实云朵波浪裁切边缘）
             drawPath(
                 path = cloudFillPath,
                 color = palette.secondaryContainer,
             )
-
-            val ribbonOffset = 3.dp.toPx()
-            val ribbonPath = androidx.compose.ui.graphics.Path().apply {
-                moveTo(0f, cloudBaseY + ribbonOffset)
-                val segs = 4
-                val segW = w / segs
-                for (i in 0 until segs) {
-                    val xStart = i * segW
-                    val xEnd = (i + 1) * segW
-                    val xMid = (xStart + xEnd) / 2f
-                    quadraticBezierTo(
-                        xMid,
-                        cloudBaseY + cloudSag + ribbonOffset,
-                        xEnd,
-                        cloudBaseY + ribbonOffset
-                    )
-                }
-            }
-            drawPath(
-                path = ribbonPath,
-                color = palette.primary.copy(alpha = 0.82f),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(
-                    width = 3.5.dp.toPx(),
-                    cap = androidx.compose.ui.graphics.StrokeCap.Round
-                ),
-            )
-
-            val charmXs = listOf(0.08f, 0.23f, 0.41f, 0.60f, 0.78f, 0.92f)
-            charmXs.forEachIndexed { idx, frac ->
-                val cx = w * frac + (if (idx % 2 == 0) swayDeg else -swayDeg) * 0.6f
-                val topY = cloudBaseY + cloudSag * 0.45f
-                val botY = topY + (if (idx % 2 == 0) 15.dp.toPx() else 13.dp.toPx())
-
-                drawLine(
-                    color = palette.secondary.copy(alpha = 0.55f),
-                    start = androidx.compose.ui.geometry.Offset(cx, topY),
-                    end = androidx.compose.ui.geometry.Offset(cx, botY),
-                    strokeWidth = 1.6.dp.toPx(),
-                    pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(5f, 4f), 0f)
-                )
-
-                val r = 7.5.dp.toPx()
-                val cy = botY + r * 0.8f
-                when (idx) {
-                    0 -> {
-                        val starPath = androidx.compose.ui.graphics.Path().apply {
-                            for (p in 0 until 10) {
-                                val rad = if (p % 2 == 0) r else r * 0.48f
-                                val ang = Math.toRadians((p * 36.0) - 90.0)
-                                val px = cx + (rad * Math.cos(ang)).toFloat()
-                                val py = cy + (rad * Math.sin(ang)).toFloat()
-                                if (p == 0) moveTo(px, py) else lineTo(px, py)
-                            }
-                            close()
-                        }
-                        drawPath(starPath, color = palette.secondary.copy(alpha = 0.85f))
-                    }
-                    1 -> {
-                        val bowPath = androidx.compose.ui.graphics.Path().apply {
-                            moveTo(cx, cy)
-                            cubicTo(cx - r * 1.5f, cy - r * 1.1f, cx - r * 1.5f, cy + r * 1.0f, cx, cy + r * 0.1f)
-                            cubicTo(cx + r * 1.5f, cy - r * 1.1f, cx + r * 1.5f, cy + r * 1.0f, cx, cy + r * 0.1f)
-                            close()
-                        }
-                        drawPath(bowPath, color = palette.primary)
-                        drawLine(
-                            color = palette.primary,
-                            start = androidx.compose.ui.geometry.Offset(cx - r * 0.2f, cy + r * 0.1f),
-                            end = androidx.compose.ui.geometry.Offset(cx - r * 0.7f, cy + r * 1.15f),
-                            strokeWidth = 3.dp.toPx(),
-                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                        )
-                        drawLine(
-                            color = palette.primary,
-                            start = androidx.compose.ui.geometry.Offset(cx + r * 0.2f, cy + r * 0.1f),
-                            end = androidx.compose.ui.geometry.Offset(cx + r * 0.7f, cy + r * 1.15f),
-                            strokeWidth = 3.dp.toPx(),
-                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                        )
-                        drawCircle(color = palette.accent, radius = r * 0.32f, center = androidx.compose.ui.geometry.Offset(cx, cy))
-                    }
-                    2 -> {
-                        val bolt = androidx.compose.ui.graphics.Path().apply {
-                            moveTo(cx + r * 0.25f, cy - r * 0.95f)
-                            lineTo(cx - r * 0.55f, cy + r * 0.10f)
-                            lineTo(cx + r * 0.05f, cy + r * 0.10f)
-                            lineTo(cx - r * 0.25f, cy + r * 1.05f)
-                            lineTo(cx + r * 0.55f, cy - r * 0.10f)
-                            lineTo(cx - r * 0.05f, cy - r * 0.10f)
-                            close()
-                        }
-                        drawPath(bolt, color = palette.secondary.copy(alpha = 0.88f))
-                    }
-                    3 -> {
-                        val starPath = androidx.compose.ui.graphics.Path().apply {
-                            for (p in 0 until 10) {
-                                val rad = if (p % 2 == 0) r else r * 0.50f
-                                val ang = Math.toRadians((p * 36.0) - 90.0)
-                                val px = cx + (rad * Math.cos(ang)).toFloat()
-                                val py = cy + (rad * Math.sin(ang)).toFloat()
-                                if (p == 0) moveTo(px, py) else lineTo(px, py)
-                            }
-                            close()
-                        }
-                        drawPath(starPath, color = Color.White)
-                        drawPath(
-                            starPath,
-                            color = palette.primary,
-                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.2.dp.toPx())
-                        )
-                    }
-                    4 -> {
-                        fun heartPath(scale: Float): androidx.compose.ui.graphics.Path = androidx.compose.ui.graphics.Path().apply {
-                            val hr = r * scale
-                            moveTo(cx, cy + hr * 0.85f)
-                            cubicTo(cx - hr * 1.35f, cy + hr * 0.15f, cx - hr * 0.95f, cy - hr * 0.95f, cx, cy - hr * 0.30f)
-                            cubicTo(cx + hr * 0.95f, cy - hr * 0.95f, cx + hr * 1.35f, cy + hr * 0.15f, cx, cy + hr * 0.85f)
-                            close()
-                        }
-                        drawPath(heartPath(1.1f), color = palette.secondary.copy(alpha = 0.72f))
-                        drawPath(heartPath(0.58f), color = palette.primary)
-                    }
-                    5 -> {
-                        drawLine(
-                            color = palette.secondary.copy(alpha = 0.85f),
-                            start = androidx.compose.ui.geometry.Offset(cx, cy - r * 0.85f),
-                            end = androidx.compose.ui.geometry.Offset(cx, cy + r * 0.95f),
-                            strokeWidth = 3.5.dp.toPx(),
-                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                        )
-                        drawLine(
-                            color = palette.secondary.copy(alpha = 0.85f),
-                            start = androidx.compose.ui.geometry.Offset(cx - r * 0.65f, cy - r * 0.1f),
-                            end = androidx.compose.ui.geometry.Offset(cx + r * 0.65f, cy - r * 0.1f),
-                            strokeWidth = 3.5.dp.toPx(),
-                            cap = androidx.compose.ui.graphics.StrokeCap.Round
-                        )
-                    }
-                }
-            }
         }
     }
     remarkEditState.EditStateContent { remark, onUpdate ->

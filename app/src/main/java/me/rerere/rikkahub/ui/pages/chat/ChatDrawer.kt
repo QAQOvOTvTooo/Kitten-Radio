@@ -851,12 +851,11 @@ private fun CoupleMusicWidgetCard(
         enabled = enableAssetTint,
     )
 
-    // 原图比例 1672 : 1556，左下角心心与右下角骷髅已擦白，替换为放大的绵绵头像与老公头像
+    // 原图比例 1672 : 1555，已重绘全对称超采样抗锯齿高清圆角描边，无需额外套错位的 clip
     androidx.compose.foundation.layout.BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1672f / 1556f)
-            .clip(RoundedCornerShape(22.dp))
+            .aspectRatio(1672f / 1555f)
             .clickable { onClickEdit() },
     ) {
         val cardW = maxWidth
@@ -974,12 +973,11 @@ private fun OurHomePlaylistTrackItem(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .height(66.dp)
             .clickable { onClick() },
         contentAlignment = Alignment.CenterStart,
     ) {
-        // 1. 图2 精修后的扇形蕾丝花边 + 粉色波点 + 右侧十字绑带外框（随 5 色主题智能染色）
+        // 1. 绵绵精抠高清扇形蕾丝花边 + 粉色波点 + 右侧十字绑带外框（不裁切圆角以保留完整四周蕾丝边，随主题智能染色）
         Image(
             painter = androidx.compose.ui.res.painterResource(id = R.drawable.kitten_drawer_playlist_frame),
             contentDescription = title,
@@ -988,25 +986,25 @@ private fun OurHomePlaylistTrackItem(
             modifier = Modifier.fillMaxSize(),
         )
 
-        // 2. 左侧专属 CD 碟片 + 中间单行歌名（右侧留出蕾丝框自带的十字交叉绑带 ×·×·×·×，微调间距防止长歌名出现省略号）
+        // 2. 左侧专属 CD 碟片往右挪进波点虚线内侧 + 中间单行歌名（避开四周波点框线与右侧十字绑带）
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 12.dp, end = 24.dp),
+                .padding(start = 22.dp, end = 28.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(9.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Image(
                 painter = androidx.compose.ui.res.painterResource(id = cdResId),
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.size(42.dp),
+                modifier = Modifier.size(39.dp),
             )
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Bold,
-                    fontSize = androidx.compose.ui.unit.TextUnit(13.2f, androidx.compose.ui.unit.TextUnitType.Sp),
+                    fontSize = androidx.compose.ui.unit.TextUnit(12.8f, androidx.compose.ui.unit.TextUnitType.Sp),
                 ),
                 color = textColor,
                 maxLines = 1,
@@ -1128,63 +1126,167 @@ private fun FolderBar(
     onRename: (Folder) -> Unit,
     onDelete: (Folder) -> Unit,
 ) {
-    LazyRow(
+    var folderMenuExpanded by remember { mutableStateOf(false) }
+    val selectedFolder = folders.find { it.id == selectedFolderId }
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        item {
-            FolderChip(
-                label = stringResource(R.string.chat_page_folder_default),
-                selected = selectedFolderId == null,
-                onClick = { onSelect(null) },
-                onLongClick = {},
-            )
-        }
-        items(folders) { folder ->
-            var menuExpanded by remember { mutableStateOf(false) }
-            Box {
-                FolderChip(
-                    label = folder.name,
-                    icon = HugeIcons.Folder01,
-                    selected = selectedFolderId == folder.id,
-                    onClick = { onSelect(folder.id) },
-                    onLongClick = { menuExpanded = true },
-                )
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                    border = materialModeBorderStroke(),
+        FolderChip(
+            label = stringResource(R.string.chat_page_folder_default),
+            selected = selectedFolderId == null,
+            onClick = { onSelect(null) },
+            onLongClick = {},
+        )
+
+        // 红框位置：文件夹下拉选择按钮（替代原来的左右滑动选择文件夹）
+        Box {
+            Surface(
+                shape = CircleShape,
+                color = if (selectedFolder != null) {
+                    MaterialTheme.colorScheme.secondaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerLow
+                },
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable { folderMenuExpanded = true },
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_page_rename)) },
-                        leadingIcon = { Icon(HugeIcons.PencilEdit01, null) },
-                        onClick = {
-                            onRename(folder)
-                            menuExpanded = false
-                        }
+                    Icon(
+                        imageVector = HugeIcons.Folder01,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = if (selectedFolder != null) {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
-                    DropdownMenuItem(
-                        text = { Text(stringResource(R.string.chat_page_delete)) },
-                        leadingIcon = { Icon(HugeIcons.Delete01, null) },
-                        onClick = {
-                            onDelete(folder)
-                            menuExpanded = false
-                        }
+                    Text(
+                        text = selectedFolder?.name ?: "文件夹",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (selectedFolder != null) {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Icon(
+                        imageVector = HugeIcons.ArrowDown01,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp),
+                        tint = if (selectedFolder != null) {
+                            MaterialTheme.colorScheme.onSecondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
             }
-        }
-        item {
-            FolderChip(
-                label = stringResource(R.string.chat_page_folder_add),
-                icon = HugeIcons.FolderAdd,
-                selected = false,
-                onClick = onCreate,
-                onLongClick = {},
-            )
+
+            DropdownMenu(
+                expanded = folderMenuExpanded,
+                onDismissRequest = { folderMenuExpanded = false },
+                shape = RoundedCornerShape(16.dp),
+                border = materialModeBorderStroke(),
+            ) {
+                folders.forEach { folder ->
+                    val isSelected = selectedFolderId == folder.id
+                    DropdownMenuItem(
+                        text = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(
+                                    text = folder.name,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(end = 8.dp),
+                                )
+                                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    IconButton(
+                                        onClick = {
+                                            folderMenuExpanded = false
+                                            onRename(folder)
+                                        },
+                                        modifier = Modifier.size(26.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = HugeIcons.PencilEdit01,
+                                            contentDescription = stringResource(R.string.chat_page_rename),
+                                            modifier = Modifier.size(14.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            folderMenuExpanded = false
+                                            onDelete(folder)
+                                        },
+                                        modifier = Modifier.size(26.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = HugeIcons.Delete01,
+                                            contentDescription = stringResource(R.string.chat_page_delete),
+                                            modifier = Modifier.size(14.dp),
+                                            tint = MaterialTheme.colorScheme.error,
+                                        )
+                                    }
+                                }
+                            }
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = HugeIcons.Folder01,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                        onClick = {
+                            onSelect(folder.id)
+                            folderMenuExpanded = false
+                        }
+                    )
+                }
+                if (folders.isNotEmpty()) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
+                }
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = "＋ " + stringResource(R.string.chat_page_folder_add),
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = HugeIcons.FolderAdd,
+                            contentDescription = stringResource(R.string.chat_page_folder_add),
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    },
+                    onClick = {
+                        folderMenuExpanded = false
+                        onCreate()
+                    }
+                )
+            }
         }
     }
 }

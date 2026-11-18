@@ -165,7 +165,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ): MessageChunk = withContext(Dispatchers.IO) {
-        val requestBody = buildCompletionRequestBody(messages, params)
+        val requestBody = buildCompletionRequestBody(messages, params, providerSetting.sendHistoryReasoning)
 
         val url = buildUrl(
             providerSetting = providerSetting,
@@ -221,7 +221,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ): Flow<MessageChunk> = callbackFlow {
-        val requestBody = buildCompletionRequestBody(messages, params)
+        val requestBody = buildCompletionRequestBody(messages, params, providerSetting.sendHistoryReasoning)
 
         val url = buildUrl(
             providerSetting = providerSetting,
@@ -355,7 +355,8 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
 
     private fun buildCompletionRequestBody(
         messages: List<UIMessage>,
-        params: TextGenerationParams
+        params: TextGenerationParams,
+        sendHistoryReasoning: Boolean = false,
     ): JsonObject = buildJsonObject {
         // System message if available
         val systemMessage = messages.firstOrNull { it.role == MessageRole.SYSTEM }
@@ -421,7 +422,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         // Contents (user messages)
         put(
             "contents",
-            buildContents(messages)
+            buildContents(messages, sendHistoryReasoning)
         )
 
         // Tools
@@ -609,13 +610,16 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         }
     }
 
-    private fun buildContents(messages: List<UIMessage>): JsonArray {
+    private fun buildContents(
+        messages: List<UIMessage>,
+        sendHistoryReasoning: Boolean = false,
+    ): JsonArray {
         return buildJsonArray {
             messages
                 .filter { it.role != MessageRole.SYSTEM && it.isValidToUpload() }
                 .forEach { message ->
                     if (message.role == MessageRole.ASSISTANT) {
-                        addModelMessage(message)
+                        addModelMessage(message, sendHistoryReasoning)
                     } else {
                         addUserMessage(message)
                     }
@@ -623,13 +627,29 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         }
     }
 
-    private fun JsonArrayBuilder.addModelMessage(message: UIMessage) {
+    private fun JsonArrayBuilder.addModelMessage(
+        message: UIMessage,
+        sendHistoryReasoning: Boolean = false,
+    ) {
         val groups = groupPartsByToolBoundary(message.parts)
         val partsBuffer = mutableListOf<JsonObject>()
 
         for (group in groups) {
             when (group) {
                 is PartGroup.Content -> {
+                    if (sendHistoryReasoning) {
+                        group.parts.filterIsInstance<UIMessagePart.Reasoning>().forEach { reasoningPart ->
+                            if (reasoningPart.reasoning.isNotBlank()) {
+                                partsBuffer.add(buildJsonObject {
+                                    put("text", reasoningPart.reasoning)
+                                    put("thought", true)
+                                    reasoningPart.metadata?.get("thoughtSignature")?.jsonPrimitive?.contentOrNull?.let {
+                                        put("thoughtSignature", it)
+                                    }
+                                })
+                            }
+                        }
+                    }
                     group.parts.mapNotNull { it.toGooglePart() }.forEach { partsBuffer.add(it) }
                 }
 

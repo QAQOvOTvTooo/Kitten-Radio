@@ -63,6 +63,7 @@ fun RikkahubTheme(
     content: @Composable () -> Unit
 ) {
     val settings by rememberUserSettingsState()
+    syncCustomKittenPaletteState(settings.ourHomeSetting)
 
     val colorMode by rememberColorMode()
     val darkTheme = when (colorMode) {

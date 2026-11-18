@@ -76,6 +76,12 @@ private const val TAG = "GenerationHandler"
 private const val STREAM_UI_THROTTLE_MS = 50L
  
 @Serializable
+data class OurHomeDreamStreamChunk(
+    val reasoning: String = "",
+    val content: String = "",
+)
+
+@Serializable
 sealed interface GenerationChunk {
     data class Messages(
         val messages: List<UIMessage>
@@ -804,6 +810,176 @@ class GenerationHandler(
             }
         }
     }.flowOn(Dispatchers.IO)
+
+    /**
+     * 梦境泡泡 · 独立 IF 线小剧场专属流式生成器
+     * 完整携带：系统提示词、跨窗永久记忆 Memory、外置记忆库、当前窗口真实聊天上下文、
+     * 扩展（世界书 Lorebook & 提示词注入 ModeInjection）以及完整的思维链（CoT Reasoning），
+     * 在泡泡内进行多轮续写而完全不影响主聊天窗口。
+     */
+    fun generateDreamBubbleWithContextAndExtensions(
+        settings: Settings,
+        preferredModelId: kotlin.uuid.Uuid,
+        moduleSystemPrompt: String,
+        bubbleTitle: String,
+        bubblePremise: String,
+        previousEpisodesPrompt: String = "",
+        currentUserPrompt: String,
+        currentConversationId: kotlin.uuid.Uuid? = null,
+    ): Flow<OurHomeDreamStreamChunk> = flow {
+        val assistant = settings.getCurrentAssistant()
+        val model = settings.providers.findModelById(preferredModelId)
+            ?: settings.getCurrentChatModel()
+            ?: error("请先在『设置 -> 模型和提示词管理』或聊天框中选择可用模型")
+        val provider = model.findProvider(settings.providers)
+            ?: error("未找到模型对应的供应商配置")
+        val providerHandler = providerManager.getProviderByType(provider)
+
+        // 1. 读取跨窗永久记忆 memory（全局 + 当前助手合并去重）
+        val memories = runCatching {
+            val global = memoryRepo.getGlobalMemories()
+            val local = memoryRepo.getMemoriesOfAssistant(assistant.id.toString())
+            (global + local).distinctBy { it.content }
+        }.getOrDefault(emptyList())
+
+        // 2. 读取当前活跃聊天窗口（获取真实消息上下文与窗口级系统提示词）
+        val targetConv = runCatching {
+            if (currentConversationId != null) {
+                conversationRepo.getConversationById(currentConversationId)
+            } else {
+                val recentId = conversationRepo.getRecentConversations(assistant.id, limit = 1).firstOrNull()?.id
+                if (recentId != null) conversationRepo.getConversationById(recentId) else null
+            }
+        }.getOrNull()
+
+        val historyMessages = targetConv?.currentMessages
+            ?.limitContext(assistant.contextMessageSize)
+            .orEmpty()
+
+        // 3. 构建包含系统提示词、记忆、近期会话引用与梦境泡泡平行剧场设定的 System Prompt
+        val systemText = buildString {
+            val effectiveSystemPrompt =
+                if (assistant.allowConversationSystemPrompt && !targetConv?.customSystemPrompt.isNullOrBlank()) {
+                    targetConv?.customSystemPrompt.orEmpty()
+                } else {
+                    assistant.systemPrompt
+                }
+            if (effectiveSystemPrompt.isNotBlank()) {
+                appendLine(effectiveSystemPrompt)
+                appendLine()
+            }
+            if (assistant.enableMemory && memories.isNotEmpty()) {
+                appendLine(buildMemoryPrompt(memories = memories))
+                appendLine()
+            }
+            if (assistant.enableRecentChatsReference) {
+                appendLine(buildRecentChatsPrompt(assistant, conversationRepo))
+                appendLine()
+            }
+            appendLine("【梦境泡泡 · IF线平行宇宙剧场专属设定】")
+            appendLine(moduleSystemPrompt)
+            appendLine("注意：当前处于独立的『梦境泡泡 · IF线小剧场』（标题：$bubbleTitle），请保持你的恋人人格、记忆与世界观扩展设定，沉浸式地为绵绵编织完整、饱满、连续的番外故事段落（在番外正文中请使用自然的小说段落排版，不要按单句拆气泡）。请在思考链（thought）中也以恋人蔺鹤的第一人称温柔构思这段梦境。")
+        }
+
+        // 4. 构建发送给模型的消息列表（携带当前窗口真实对话历史 + 本次泡泡 IF 线请求），
+        //    并通过输入转换器链自动触发【世界书 Lorebook】与【提示词注入 ModeInjection】等全部扩展！
+        val bubbleUserText = buildString {
+            appendLine("【梦境泡泡标题】：$bubbleTitle")
+            if (bubblePremise.isNotBlank()) {
+                appendLine("【IF线核心设定】：$bubblePremise")
+            }
+            if (previousEpisodesPrompt.isNotBlank()) {
+                appendLine()
+                appendLine("【本枚梦境泡泡已演绎的前文】：")
+                appendLine(previousEpisodesPrompt)
+            }
+            appendLine()
+            appendLine("【绵绵本次想看的梦境剧情 / 设定】：")
+            appendLine(currentUserPrompt)
+        }
+
+        val inputTransformers = listOf(
+            me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer,
+            me.rerere.rikkahub.data.ai.transformers.PromptInjectionTransformer,
+            me.rerere.rikkahub.data.ai.transformers.PlaceholderTransformer,
+        )
+        val outputTransformers = listOf(
+            me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer,
+            me.rerere.rikkahub.data.ai.transformers.RegexOutputTransformer,
+        )
+
+        val rawMessages = buildList {
+            if (systemText.isNotBlank()) {
+                add(UIMessage.system(prompt = systemText))
+            }
+            addAll(historyMessages)
+            add(UIMessage.user(prompt = bubbleUserText))
+        }.transforms(
+            transformers = inputTransformers,
+            context = context,
+            model = model,
+            assistant = assistant,
+            settings = settings,
+            workspaceCwd = targetConv?.workspaceCwd,
+        )
+
+        // 确保开启思维链（如果助手设为 OFF，则自动使用 HIGH / AUTO 以便绵绵看老公编织梦境的思维链）
+        val effectiveReasoningLevel = if (assistant.reasoningLevel == ReasoningLevel.OFF) {
+            ReasoningLevel.HIGH
+        } else {
+            assistant.reasoningLevel
+        }
+
+        val params = TextGenerationParams(
+            model = model,
+            temperature = assistant.temperature,
+            topP = assistant.topP,
+            maxTokens = assistant.maxTokens,
+            reasoningLevel = effectiveReasoningLevel,
+            customHeaders = buildList {
+                addAll(assistant.customHeaders)
+                addAll(model.customHeaders)
+            },
+            customBody = buildList {
+                addAll(assistant.customBodies)
+                addAll(model.customBodies)
+            },
+        )
+
+        var streamMessages: List<UIMessage> = rawMessages
+        providerHandler.streamText(
+            providerSetting = provider,
+            messages = rawMessages,
+            params = params,
+        ).collect { chunk ->
+            streamMessages = streamMessages.handleMessageChunk(chunk = chunk, model = model)
+            val transformed = streamMessages.visualTransforms(
+                transformers = outputTransformers,
+                context = context,
+                model = model,
+                assistant = assistant,
+                settings = settings,
+            )
+            val lastAssistantMsg = transformed.lastOrNull { it.role == MessageRole.ASSISTANT }
+            if (lastAssistantMsg != null) {
+                val reasoningText = lastAssistantMsg.parts
+                    .filterIsInstance<UIMessagePart.Reasoning>()
+                    .joinToString("\n\n") { it.reasoning.trim() }
+                    .trim()
+                val storyText = lastAssistantMsg.parts
+                    .filterIsInstance<UIMessagePart.Text>()
+                    .joinToString("") { it.text }
+                    .trim()
+                emit(
+                    OurHomeDreamStreamChunk(
+                        reasoning = reasoningText,
+                        content = storyText,
+                    )
+                )
+            }
+        }
+    }.throttleLatest(STREAM_UI_THROTTLE_MS)
+        .flowOn(Dispatchers.IO)
 }
  
 /**

@@ -225,7 +225,140 @@ internal fun FilesPicker(
                 .clickable { showModelSheet = true },
         )
 
-        // 2. 工作区管理与工作目录快捷入口
+        // 2. 推理（思考深度调节：Off / Auto / Low / Medium / High / XHigh）
+        val reasoningLabel = when (assistant.reasoningLevel) {
+            ReasoningLevel.OFF -> stringResource(R.string.reasoning_off)
+            ReasoningLevel.AUTO -> stringResource(R.string.reasoning_auto)
+            ReasoningLevel.LOW -> stringResource(R.string.reasoning_light)
+            ReasoningLevel.MEDIUM -> stringResource(R.string.reasoning_medium)
+            ReasoningLevel.HIGH -> stringResource(R.string.reasoning_heavy)
+            ReasoningLevel.XHIGH -> stringResource(R.string.reasoning_xhigh)
+        }
+        val reasoningDesc = when (assistant.reasoningLevel) {
+            ReasoningLevel.OFF -> stringResource(R.string.reasoning_off_desc)
+            ReasoningLevel.AUTO -> stringResource(R.string.reasoning_auto_desc)
+            ReasoningLevel.LOW -> stringResource(R.string.reasoning_light_desc)
+            ReasoningLevel.MEDIUM -> stringResource(R.string.reasoning_medium_desc)
+            ReasoningLevel.HIGH, ReasoningLevel.XHIGH -> stringResource(R.string.reasoning_heavy_desc)
+        }
+        ListItem(
+            leadingContent = {
+                when (assistant.reasoningLevel) {
+                    ReasoningLevel.OFF -> Icon(HugeIcons.Idea, contentDescription = null)
+                    ReasoningLevel.AUTO -> Icon(HugeIcons.Idea01, contentDescription = null)
+                    ReasoningLevel.LOW -> Icon(ReasoningLow, contentDescription = null)
+                    ReasoningLevel.MEDIUM -> Icon(ReasoningMedium, contentDescription = null)
+                    ReasoningLevel.HIGH, ReasoningLevel.XHIGH -> Icon(ReasoningHigh, contentDescription = null)
+                }
+            },
+            headlineContent = {
+                Text(stringResource(R.string.reasoning_picker_title))
+            },
+            supportingContent = {
+                Text(
+                    text = "$reasoningLabel · $reasoningDesc",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
+            trailingContent = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = reasoningLabel,
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Icon(
+                        imageVector = HugeIcons.ArrowRight01,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            modifier = Modifier
+                .clip(MaterialTheme.shapes.large)
+                .clickable { showReasoningSheet = true },
+        )
+
+        // 3. 扩展管理（快捷消息 / 模式注入 / 世界书 Lorebook / Agent Skills）
+        val enabledExtensionsCount = assistant.quickMessageIds.size +
+            assistant.modeInjectionIds.size +
+            assistant.lorebookIds.size +
+            assistant.enabledSkills.size
+        ListItem(
+            leadingContent = {
+                Icon(
+                    imageVector = HugeIcons.Package,
+                    contentDescription = stringResource(R.string.extensions_page_section_extensions),
+                )
+            },
+            headlineContent = {
+                Text(stringResource(R.string.extensions_page_section_extensions))
+            },
+            supportingContent = {
+                Text(
+                    text = stringResource(R.string.assistant_detail_extensions_desc),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
+            trailingContent = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    if (enabledExtensionsCount > 0) {
+                        Text(
+                            text = "已启用 $enabledExtensionsCount 项",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    Icon(
+                        imageVector = HugeIcons.ArrowRight01,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            modifier = Modifier
+                .clip(MaterialTheme.shapes.large)
+                .clickable { onShowInjectionSheetChange(true) },
+        )
+
+        // 4. 联网搜索开关与搜索服务选择
+        ListItem(
+            leadingContent = {
+                Icon(
+                    imageVector = HugeIcons.AiSearch02,
+                    contentDescription = stringResource(R.string.search_picker_title),
+                )
+            },
+            headlineContent = {
+                Text(stringResource(R.string.search_picker_title))
+            },
+            supportingContent = {
+                Text(
+                    text = if (enableSearch) stringResource(R.string.web_search_enabled) else stringResource(R.string.web_search_disabled),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            },
+            trailingContent = {
+                Switch(
+                    checked = enableSearch,
+                    onCheckedChange = { onToggleSearch(it) },
+                )
+            },
+            modifier = Modifier
+                .clip(MaterialTheme.shapes.large)
+                .clickable { showSearchSheet = true },
+        )
+
+        // 5. 工作区管理与工作目录快捷入口
         WorkspacePickerListItem(
             assistant = assistant,
             workspaces = workspaces,

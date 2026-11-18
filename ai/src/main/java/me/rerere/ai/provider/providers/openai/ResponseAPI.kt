@@ -241,7 +241,7 @@ class ResponseAPI(
             }
 
             // messages
-            put("input", buildMessages(messages))
+            put("input", buildMessages(messages, providerSetting.sendHistoryReasoning))
 
             // reasoning
             if (params.model.abilities.contains(ModelAbility.REASONING)) {
@@ -305,19 +305,25 @@ class ResponseAPI(
         }.mergeCustomBody(params.customBody)
     }
 
-    internal fun buildMessages(messages: List<UIMessage>) = buildJsonArray {
+    internal fun buildMessages(
+        messages: List<UIMessage>,
+        sendHistoryReasoning: Boolean = false,
+    ) = buildJsonArray {
         messages
             .filter { it.isValidToUpload() && it.role != MessageRole.SYSTEM }
             .forEach { message ->
                 if (message.role == MessageRole.ASSISTANT) {
-                    addAssistantItems(message)
+                    addAssistantItems(message, sendHistoryReasoning)
                 } else {
                     addUserItems(message)
                 }
             }
     }
 
-    private fun JsonArrayBuilder.addAssistantItems(message: UIMessage) {
+    private fun JsonArrayBuilder.addAssistantItems(
+        message: UIMessage,
+        sendHistoryReasoning: Boolean = false,
+    ) {
         val groups = groupPartsByToolBoundary(message.parts)
         val contentBuffer = mutableListOf<UIMessagePart>()
 
@@ -327,30 +333,32 @@ class ResponseAPI(
                     group.parts.forEach { part ->
                         when (part) {
                             is UIMessagePart.Reasoning -> {
-                                // 先输出累积的文本/图片内容
-                                if (contentBuffer.isNotEmpty()) {
-                                    addContentItem(MessageRole.ASSISTANT, contentBuffer)
-                                    contentBuffer.clear()
-                                }
-                                // 输出 reasoning item
-                                add(buildJsonObject {
-                                    put("type", "reasoning")
-                                    part.metadata?.get("reasoning_id")?.jsonPrimitiveOrNull?.contentOrNull?.let {
-                                        put("id", it)
+                                if (sendHistoryReasoning) {
+                                    // 先输出累积的文本/图片内容
+                                    if (contentBuffer.isNotEmpty()) {
+                                        addContentItem(MessageRole.ASSISTANT, contentBuffer)
+                                        contentBuffer.clear()
                                     }
-                                    put("summary", buildJsonArray {
-                                        add(buildJsonObject {
-                                            put("type", "summary_text")
-                                            put("text", part.reasoning)
+                                    // 输出 reasoning item
+                                    add(buildJsonObject {
+                                        put("type", "reasoning")
+                                        part.metadata?.get("reasoning_id")?.jsonPrimitiveOrNull?.contentOrNull?.let {
+                                            put("id", it)
+                                        }
+                                        put("summary", buildJsonArray {
+                                            add(buildJsonObject {
+                                                put("type", "summary_text")
+                                                put("text", part.reasoning)
+                                            })
                                         })
+                                        part.metadata?.get("encrypted_content")?.jsonPrimitiveOrNull?.contentOrNull?.let {
+                                            put(
+                                                "encrypted_content",
+                                                part.metadata?.get("encrypted_content")?.jsonPrimitive?.contentOrNull ?: ""
+                                            )
+                                        }
                                     })
-                                    part.metadata?.get("encrypted_content")?.jsonPrimitiveOrNull?.contentOrNull?.let {
-                                        put(
-                                            "encrypted_content",
-                                            part.metadata?.get("encrypted_content")?.jsonPrimitive?.contentOrNull ?: ""
-                                        )
-                                    }
-                                })
+                                }
                             }
 
                             is UIMessagePart.Image -> {

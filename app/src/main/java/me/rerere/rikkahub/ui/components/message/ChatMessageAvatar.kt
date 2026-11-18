@@ -110,7 +110,7 @@ fun ChatMessageUserAvatar(
                     name = nickname,
                     modifier = Modifier
                         .size(44.dp)
-                        .border(2.5.dp, palette.secondary.copy(alpha = 0.65f), androidx.compose.foundation.shape.CircleShape)
+                        .border(2.5.dp, palette.primary.copy(alpha = 0.85f), androidx.compose.foundation.shape.CircleShape)
                         .padding(2.dp),
                     value = avatar,
                     loading = false,
@@ -152,7 +152,7 @@ fun ChatMessageAssistantAvatar(
                             name = assistant.name,
                             modifier = Modifier
                                 .size(44.dp)
-                                .border(2.5.dp, palette.primary.copy(alpha = 0.85f), androidx.compose.foundation.shape.CircleShape)
+                                .border(2.5.dp, palette.secondary.copy(alpha = 0.65f), androidx.compose.foundation.shape.CircleShape)
                                 .padding(2.dp),
                             value = assistant.avatar,
                             loading = loading,

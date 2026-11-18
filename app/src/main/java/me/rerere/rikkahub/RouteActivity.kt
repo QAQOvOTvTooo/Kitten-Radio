@@ -414,12 +414,11 @@ class RouteActivity : ComponentActivity() {
                 LocalTTSState provides tts,
                 LocalASRState provides asr,
             ) {
-                Toaster(
+                me.rerere.rikkahub.ui.components.ui.KittenRetroToaster(
                     state = toastState,
                     darkTheme = LocalDarkMode.current,
-                    richColors = true,
-                    alignment = Alignment.TopCenter,
-                    showCloseButton = true,
+                    paletteId = settings.ourHomeSetting.kittenPaletteId,
+                    enableAssetTint = settings.ourHomeSetting.enableAssetTint,
                 )
                 Box(
                     modifier = Modifier

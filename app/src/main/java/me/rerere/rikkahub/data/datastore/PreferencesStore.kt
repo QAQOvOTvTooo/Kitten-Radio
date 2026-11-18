@@ -195,6 +195,12 @@ class SettingsStore(
     }
 
     private val dataStore = context.settingsStore
+    private val homeCachePrefs = context.getSharedPreferences("kitten_home_fast_cache", Context.MODE_PRIVATE)
+
+    private fun loadCachedOurHomeSetting(): OurHomeSetting {
+        val raw = homeCachePrefs.getString("our_home_setting", null) ?: return OurHomeSetting()
+        return runCatching { JsonInstant.decodeFromString<OurHomeSetting>(raw) }.getOrNull() ?: OurHomeSetting()
+    }
 
     // 用于检测 assistants 列表是否真正变化，避免无关设置写入触发 Pebble 模板缓存清空
     @Volatile
@@ -463,7 +469,14 @@ class SettingsStore(
 
     val settingsFlow = settingsFlowRaw
         .distinctUntilChanged()
-        .toMutableStateFlow(scope, Settings.dummy())
+        .onEach { s ->
+            runCatching {
+                homeCachePrefs.edit()
+                    .putString("our_home_setting", JsonInstant.encodeToString(s.ourHomeSetting))
+                    .apply()
+            }
+        }
+        .toMutableStateFlow(scope, Settings.dummy().copy(ourHomeSetting = loadCachedOurHomeSetting()))
 
     suspend fun update(settings: Settings) {
         if(settings.init) {
@@ -471,6 +484,11 @@ class SettingsStore(
             return
         }
         settingsFlow.value = settings
+        runCatching {
+            homeCachePrefs.edit()
+                .putString("our_home_setting", JsonInstant.encodeToString(settings.ourHomeSetting))
+                .apply()
+        }
         dataStore.edit { preferences ->
             preferences[DYNAMIC_COLOR] = settings.dynamicColor
             preferences[THEME_ID] = settings.themeId

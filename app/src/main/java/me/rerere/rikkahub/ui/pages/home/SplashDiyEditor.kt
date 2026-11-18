@@ -418,6 +418,8 @@ fun SplashDiyFullEditorModal(
 
     // "__PLAYER__" 代表当前选中黑胶播放器小组件，默认打开即可看到播放器缩放与拖动提示
     var selectedItemId by remember { mutableStateOf<String?>("__PLAYER__") }
+    var isPanelCollapsed by remember { mutableStateOf(false) }
+    var isTopBarCollapsed by remember { mutableStateOf(false) }
     var showAddTextDialog by remember { mutableStateOf(false) }
     var showStickerPickerDialog by remember { mutableStateOf(false) }
     var showSongDialog by remember { mutableStateOf(false) }
@@ -490,8 +492,8 @@ fun SplashDiyFullEditorModal(
                                 splashDiyItems = old.splashDiyItems.map { cur ->
                                     if (cur.id == item.id) {
                                         cur.copy(
-                                            xFraction = (cur.xFraction + dx).coerceIn(-0.2f, 0.92f),
-                                            yFraction = (cur.yFraction + dy).coerceIn(0.02f, 0.90f),
+                                            xFraction = (cur.xFraction + dx).coerceIn(-0.35f, 0.96f),
+                                            yFraction = (cur.yFraction + dy).coerceIn(-0.08f, 0.96f),
                                         )
                                     } else cur
                                 }
@@ -570,8 +572,8 @@ fun SplashDiyFullEditorModal(
                                 splashDiyItems = old.splashDiyItems.map { cur ->
                                     if (cur.id == item.id) {
                                         cur.copy(
-                                            xFraction = (cur.xFraction + dx).coerceIn(-0.2f, 0.92f),
-                                            yFraction = (cur.yFraction + dy).coerceIn(0.02f, 0.90f),
+                                            xFraction = (cur.xFraction + dx).coerceIn(-0.35f, 0.96f),
+                                            yFraction = (cur.yFraction + dy).coerceIn(-0.08f, 0.96f),
                                         )
                                     } else cur
                                 }
@@ -582,67 +584,148 @@ fun SplashDiyFullEditorModal(
             }
         }
 
-        // 顶部操作栏：5色切换 + 完成保存
-        Surface(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .padding(top = 8.dp, start = 12.dp, end = 12.dp)
-                .fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            color = Color.White.copy(alpha = 0.94f),
-            shadowElevation = 6.dp,
-        ) {
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+        // 顶部操作栏：支持一键收起成右上角小胶囊，彻底不挡顶部手帐区域
+        if (isTopBarCollapsed) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 8.dp, end = 12.dp),
+                shape = RoundedCornerShape(50),
+                color = Color.White.copy(alpha = 0.92f),
+                shadowElevation = 6.dp,
             ) {
                 Row(
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = "手帐DIY",
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
-                        color = palette.textPrimary,
+                        text = "▾ 顶栏",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = palette.primary,
+                        modifier = Modifier.clickable { isTopBarCollapsed = false },
                     )
-                    me.rerere.rikkahub.ui.theme.allKittenPalettes().forEach { p ->
-                        val sel = p.id == palette.id
-                        Box(
-                            modifier = Modifier
-                                .size(if (sel) 22.dp else 16.dp)
-                                .background(p.primary, CircleShape)
-                                .let { m -> if (sel) m.border(2.dp, p.secondary, CircleShape) else m }
-                                .clickable { updateHome { it.copy(kittenPaletteId = p.id) } }
-                        )
-                    }
+                    Text(
+                        text = "完成",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = palette.textPrimary,
+                        modifier = Modifier.clickable { onDismiss() },
+                    )
                 }
-                Button(
-                    onClick = onDismiss,
-                    shape = RoundedCornerShape(50),
-                    colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
+            }
+        } else {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 8.dp, start = 12.dp, end = 12.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                color = Color.White.copy(alpha = 0.94f),
+                shadowElevation = 6.dp,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("完成", color = Color.White)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = "▴ 手帐DIY",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = palette.textPrimary,
+                            modifier = Modifier.clickable { isTopBarCollapsed = true },
+                        )
+                        me.rerere.rikkahub.ui.theme.allKittenPalettes().forEach { p ->
+                            val sel = p.id == palette.id
+                            Box(
+                                modifier = Modifier
+                                    .size(if (sel) 22.dp else 16.dp)
+                                    .background(p.primary, CircleShape)
+                                    .let { m -> if (sel) m.border(2.dp, p.secondary, CircleShape) else m }
+                                    .clickable { updateHome { it.copy(kittenPaletteId = p.id) } }
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(50),
+                        colors = ButtonDefaults.buttonColors(containerColor = palette.primary),
+                    ) {
+                        Text("完成", color = Color.White)
+                    }
                 }
             }
         }
 
-        // 底部手帐工具台
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(12.dp)
-                .fillMaxWidth(),
-            shape = RoundedCornerShape(24.dp),
-            color = Color.White.copy(alpha = 0.96f),
-            shadowElevation = 10.dp,
-        ) {
-            Column(
-                modifier = Modifier.padding(14.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+        // 底部手帐工具台：支持一键收起成右下角迷你悬浮按钮，完全露出下半区供绵绵自由排版
+        if (isPanelCollapsed) {
+            Surface(
+                onClick = { isPanelCollapsed = false },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .navigationBarsPadding()
+                    .padding(end = 16.dp, bottom = 16.dp),
+                shape = RoundedCornerShape(50),
+                color = palette.primary,
+                shadowElevation = 8.dp,
+                border = BorderStroke(1.5.dp, Color.White),
             ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = "▴ 展开工具箱",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White,
+                    )
+                }
+            }
+        } else {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(12.dp)
+                    .fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                color = Color.White.copy(alpha = 0.96f),
+                shadowElevation = 10.dp,
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    // 顶部折叠把手栏
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = "✨ 手帐装修工具箱",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                            color = palette.textSecondary,
+                        )
+                        Surface(
+                            onClick = { isPanelCollapsed = true },
+                            shape = RoundedCornerShape(50),
+                            color = palette.softContainer,
+                        ) {
+                            Text(
+                                text = "▾ 收起面板 (编辑下半区)",
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = palette.primary,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            )
+                        }
+                    }
                 // 如果选中了黑胶播放器小组件，显示播放器专属的大小缩放滑块与一键归位控制条
                 if (isPlayerSelected) {
                     Row(
@@ -801,28 +884,29 @@ fun SplashDiyFullEditorModal(
                     )
                 }
 
-                // 第二排：添加手帐贴纸与文字
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    FilterChip(
-                        selected = false,
-                        onClick = { showStickerPickerDialog = true },
-                        label = { Text("+ 内置贴纸") },
-                    )
-                    FilterChip(
-                        selected = false,
-                        onClick = { diyImageLauncher.launch("image/*") },
-                        label = { Text("+ 相册贴纸") },
-                    )
-                    FilterChip(
-                        selected = false,
-                        onClick = { showAddTextDialog = true },
-                        label = { Text("+ 手帐文字") },
-                    )
+                    // 第二排：添加手帐贴纸与文字
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        FilterChip(
+                            selected = false,
+                            onClick = { showStickerPickerDialog = true },
+                            label = { Text("+ 内置贴纸") },
+                        )
+                        FilterChip(
+                            selected = false,
+                            onClick = { diyImageLauncher.launch("image/*") },
+                            label = { Text("+ 相册贴纸") },
+                        )
+                        FilterChip(
+                            selected = false,
+                            onClick = { showAddTextDialog = true },
+                            label = { Text("+ 手帐文字") },
+                        )
+                    }
                 }
             }
         }

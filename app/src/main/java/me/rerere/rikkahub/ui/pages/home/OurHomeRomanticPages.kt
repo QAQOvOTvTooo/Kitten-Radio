@@ -113,6 +113,7 @@ import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
@@ -500,58 +501,7 @@ fun PartnerPhonePage() {
                             )
                         }
 
-                        // 手机桌面置顶情侣小组件（点击右上角或菜单均可触发生成，生成时在此显示同步进度）
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.82f),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(
-                                        text = "${partnerName}的私人手机",
-                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                    )
-                                    if (isGenerating) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        ) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(12.dp),
-                                                strokeWidth = 1.8.dp,
-                                                color = MaterialTheme.colorScheme.primary,
-                                            )
-                                            Text(
-                                                text = "正在同步手机...",
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.primary,
-                                            )
-                                        }
-                                    } else {
-                                        Text(
-                                            text = phoneData.updatedAt,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                                            modifier = Modifier.clickable { inspectPhoneViaApi() },
-                                        )
-                                    }
-                                }
-                                Text(
-                                    text = phoneData.statusNote,
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
-                        }
-
-                        // 如果点开了某个内置 App，展示 App 内部页面；否则展示沉浸式全尺寸猫咪6宫格桌面
+                        // 如果点开了某个内置 App，先展示置顶便签再展示 App 内部页面；在主桌面时，草莓蝴蝶结边框在最上方，置顶便签放在草莓边框下面！
                         if (selectedApp == null) {
                             val palette = me.rerere.rikkahub.ui.theme.findKittenPalette(settings.ourHomeSetting.kittenPaletteId)
                             val assetColorFilter = me.rerere.rikkahub.ui.theme.rememberKittenAssetColorFilter(
@@ -587,7 +537,7 @@ fun PartnerPhonePage() {
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(24.dp))
                                 ) {
-                                    val iconSize = (maxWidth * 0.25f).coerceIn(66.dp, 88.dp)
+                                    val iconSize = (maxWidth * 0.24f).coerceIn(64.dp, 84.dp)
 
                                     Image(
                                         painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_partner_phone_desktop),
@@ -601,49 +551,108 @@ fun PartnerPhonePage() {
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .padding(
-                                                top = maxHeight * 0.12f,
-                                                bottom = maxHeight * 0.09f,
-                                                start = maxWidth * 0.08f,
-                                                end = maxWidth * 0.08f,
+                                                top = maxHeight * 0.115f,
+                                                bottom = maxHeight * 0.085f,
+                                                start = maxWidth * 0.06f,
+                                                end = maxWidth * 0.06f,
                                             ),
-                                        verticalArrangement = Arrangement.SpaceEvenly,
+                                        verticalArrangement = Arrangement.SpaceBetween,
                                     ) {
-                                        desktopApps.forEach { rowItems ->
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                                verticalAlignment = Alignment.CenterVertically,
+                                        // 草莓蝴蝶结边框正下方的置顶情侣查岗便签
+                                        Surface(
+                                            shape = RoundedCornerShape(18.dp),
+                                            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f),
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                                                verticalArrangement = Arrangement.spacedBy(3.dp),
                                             ) {
-                                                rowItems.forEach { (targetApp, appLabel, iconResId) ->
-                                                    Column(
-                                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                                                        modifier = Modifier
-                                                            .clip(RoundedCornerShape(18.dp))
-                                                            .clickable { selectedApp = targetApp }
-                                                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                                                    ) {
-                                                        Surface(
-                                                            shape = RoundedCornerShape(22.dp),
-                                                            shadowElevation = 3.dp,
-                                                            border = BorderStroke(1.dp, Color.Black.copy(alpha = 0.06f)),
-                                                            modifier = Modifier.size(iconSize),
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                ) {
+                                                    Text(
+                                                        text = "${partnerName}的私人手机",
+                                                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                                    )
+                                                    if (isGenerating) {
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                                                         ) {
-                                                            Image(
-                                                                painter = androidx.compose.ui.res.painterResource(id = iconResId),
-                                                                contentDescription = appLabel,
-                                                                contentScale = ContentScale.Crop,
-                                                                modifier = Modifier.fillMaxSize(),
+                                                            CircularProgressIndicator(
+                                                                modifier = Modifier.size(12.dp),
+                                                                strokeWidth = 1.8.dp,
+                                                                color = MaterialTheme.colorScheme.primary,
+                                                            )
+                                                            Text(
+                                                                text = "正在同步手机...",
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = MaterialTheme.colorScheme.primary,
                                                             )
                                                         }
+                                                    } else {
                                                         Text(
-                                                            text = appLabel,
-                                                            style = MaterialTheme.typography.labelMedium.copy(
-                                                                fontWeight = FontWeight.Bold,
-                                                            ),
-                                                            color = palette.textPrimary,
-                                                            maxLines = 1,
+                                                            text = phoneData.updatedAt,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
+                                                            modifier = Modifier.clickable { inspectPhoneViaApi() },
                                                         )
+                                                    }
+                                                }
+                                                Text(
+                                                    text = phoneData.statusNote,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                )
+                                            }
+                                        }
+
+                                        // 6宫格猫咪软件图标区
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxWidth(),
+                                            verticalArrangement = Arrangement.SpaceEvenly,
+                                        ) {
+                                            desktopApps.forEach { rowItems ->
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceEvenly,
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                ) {
+                                                    rowItems.forEach { (targetApp, appLabel, iconResId) ->
+                                                        Column(
+                                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                                                            modifier = Modifier
+                                                                .clip(RoundedCornerShape(18.dp))
+                                                                .clickable { selectedApp = targetApp }
+                                                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                                                        ) {
+                                                            Surface(
+                                                                shape = RoundedCornerShape(22.dp),
+                                                                shadowElevation = 3.dp,
+                                                                border = BorderStroke(1.dp, Color.Black.copy(alpha = 0.06f)),
+                                                                modifier = Modifier.size(iconSize),
+                                                            ) {
+                                                                Image(
+                                                                    painter = androidx.compose.ui.res.painterResource(id = iconResId),
+                                                                    contentDescription = appLabel,
+                                                                    contentScale = ContentScale.Crop,
+                                                                    modifier = Modifier.fillMaxSize(),
+                                                                )
+                                                            }
+                                                            Text(
+                                                                text = appLabel,
+                                                                style = MaterialTheme.typography.labelMedium.copy(
+                                                                    fontWeight = FontWeight.Bold,
+                                                                ),
+                                                                color = palette.textPrimary,
+                                                                maxLines = 1,
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }
@@ -1890,18 +1899,20 @@ fun PartnerDiaryPage() {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            contentAlignment = Alignment.Center,
         ) {
             if (isCoverClosed || coverFlipRotation > -85f) {
                 // ================================================================
-                // 模式 A：全屏铺满的 Meow 音符猫咪线圈本封面（点击触发 3D 翻开效果）
+                // 模式 A：严格保持 A4 (1080:1527) 原生等比缩放的 Meow 音符猫咪线圈本封面
                 // ================================================================
                 Surface(
                     shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp, topEnd = 28.dp, bottomEnd = 28.dp),
                     shadowElevation = 10.dp,
                     border = BorderStroke(2.dp, Color.White.copy(alpha = 0.85f)),
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .aspectRatio(1080f / 1527f, matchHeightConstraintsFirst = false)
                         .graphicsLayer {
                             transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
                             rotationY = coverFlipRotation
@@ -1914,7 +1925,7 @@ fun PartnerDiaryPage() {
                         Image(
                             painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_diary_cover_meow),
                             contentDescription = "${partnerName}的手帐日记本封面",
-                            contentScale = ContentScale.FillBounds,
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize(),
                         )
 
@@ -1926,7 +1937,7 @@ fun PartnerDiaryPage() {
                             shadowElevation = 3.dp,
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
-                                .padding(bottom = 22.dp)
+                                .padding(bottom = 18.dp)
                                 .clickable { isCoverClosed = false },
                         ) {
                             Text(
@@ -1940,7 +1951,7 @@ fun PartnerDiaryPage() {
                 }
             } else {
                 // ================================================================
-                // 模式 B：单张内页铺满屏幕（支持左右滑动翻页 + 三款猫咪信纸交替/切换）
+                // 模式 B：单张内页严格保持 A4 (1080:1527) 原生等比缩放（支持左右滑动翻页 + 三款猫咪信纸交替/切换）
                 // ================================================================
                 androidx.compose.foundation.pager.HorizontalPager(
                     state = pagerState,
@@ -1959,20 +1970,26 @@ fun PartnerDiaryPage() {
                         }
                     }
 
-                    Surface(
-                        shape = RoundedCornerShape(22.dp),
-                        shadowElevation = 6.dp,
-                        border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.9f)),
+                    Box(
                         modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                            // 全屏铺满的单页猫咪信纸
-                            Image(
-                                painter = androidx.compose.ui.res.painterResource(id = effectivePaperRes),
-                                contentDescription = "日记内页信纸",
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier.fillMaxSize(),
-                            )
+                        Surface(
+                            shape = RoundedCornerShape(22.dp),
+                            shadowElevation = 6.dp,
+                            border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.9f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1080f / 1527f, matchHeightConstraintsFirst = false),
+                        ) {
+                            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                                // 严格等比缩放的单页猫咪信纸
+                                Image(
+                                    painter = androidx.compose.ui.res.painterResource(id = effectivePaperRes),
+                                    contentDescription = "日记内页信纸",
+                                    contentScale = ContentScale.Fit,
+                                    modifier = Modifier.fillMaxSize(),
+                                )
 
                             Column(
                                 modifier = Modifier
@@ -2164,6 +2181,7 @@ fun PartnerDiaryPage() {
                         }
                     }
                 }
+                }
             }
         }
     }
@@ -2308,11 +2326,22 @@ data class DreamBajiWallSpec(
 )
 
 @Serializable
+data class DreamBubbleEpisode(
+    val id: String = System.currentTimeMillis().toString(),
+    val userPrompt: String = "",
+    val reasoningContent: String = "",
+    val storyContent: String = "",
+    val createdAt: String = "",
+)
+
+@Serializable
 data class DreamBubbleItem(
     val id: String,
     val title: String,
     val premise: String,
     val storyContent: String,
+    val reasoningContent: String = "",
+    val episodes: List<DreamBubbleEpisode> = emptyList(),
     val createdAt: String,
     val wallId: String = "wall_default",
     // 电子吧唧徽章墙专属属性（支持自由拖拽坐标、吧唧外框、内胆柄图、3D马口铁高光膜与尺寸调节）
@@ -2427,7 +2456,9 @@ fun DreamBubblesPage() {
     var activeBubble by remember { mutableStateOf<DreamBubbleItem?>(null) }
     var editingBajiBubble by remember { mutableStateOf<DreamBubbleItem?>(null) }
     var isGenerating by remember { mutableStateOf(false) }
+    var streamingReasoning by remember { mutableStateOf("") }
     var streamingStory by remember { mutableStateOf("") }
+    var streamingUserPrompt by remember { mutableStateOf("") }
 
     fun saveBubbles(newList: List<DreamBubbleItem>) {
         bubbles = newList
@@ -2506,66 +2537,123 @@ fun DreamBubblesPage() {
         return x to y
     }
 
-    fun generateDreamBubble(title: String, premise: String, existingBubble: DreamBubbleItem? = null) {
+    // 1. 点击「吹新吧唧」只填名字：立即创建一枚专属吧唧并直接进入小剧场界面，等绵绵在里面发送设定后再请求生成！
+    fun createNewBubbleAndEnter(title: String) {
+        val nowStr = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date())
+        val (defX, defY) = defaultPosForIndex(currentWallBubbles.size)
+        val created = DreamBubbleItem(
+            id = System.currentTimeMillis().toString(),
+            title = title.trim().ifBlank { "奇思妙想泡泡" },
+            premise = "",
+            storyContent = "",
+            reasoningContent = "",
+            episodes = emptyList(),
+            createdAt = nowStr,
+            wallId = currentWall.id,
+            posX = defX,
+            posY = defY,
+            bajiSizeDp = 144f,
+            frameType = "angel",
+        )
+        saveBubbles(listOf(created) + bubbles)
+        activeBubble = created
+        toaster.show("新吧唧「${created.title}」已吹起，快告诉${partnerName}你想看的IF线吧 🫧", type = ToastType.Success)
+    }
+
+    // 2. 在吧唧小剧场内发送 IF 线设定 / 续写新梗（完整携带系统提示词、记忆、当前窗口上下文、世界书与注入扩展 + 思维链）
+    fun generateDreamBubble(userInput: String, targetBubble: DreamBubbleItem) {
         if (isGenerating) return
+        val cleanPrompt = userInput.trim()
+        if (cleanPrompt.isBlank()) return
+
         isGenerating = true
+        streamingReasoning = ""
         streamingStory = ""
+        streamingUserPrompt = cleanPrompt
+
         scope.launch {
-            val request = buildString {
-                appendLine("【梦境泡泡标题】：$title")
-                appendLine("【${userNickname}的奇思妙想 / IF线设定】：$premise")
-                if (existingBubble != null && existingBubble.storyContent.isNotBlank()) {
-                    appendLine("\n【已有梦境前文】：\n${existingBubble.storyContent}")
-                    appendLine("\n请顺着上面的梦境继续往下演绎新的浪漫篇章：")
-                } else {
-                    appendLine("\n请结合我们的恋爱默契与当前窗口上下文，为${userNickname}沉浸式地展开这段平行宇宙梦境故事：")
+            val effectiveEpisodes = if (targetBubble.episodes.isNotEmpty()) {
+                targetBubble.episodes
+            } else if (targetBubble.storyContent.isNotBlank()) {
+                listOf(
+                    DreamBubbleEpisode(
+                        id = "legacy_" + targetBubble.id,
+                        userPrompt = targetBubble.premise,
+                        reasoningContent = targetBubble.reasoningContent,
+                        storyContent = targetBubble.storyContent,
+                        createdAt = targetBubble.createdAt,
+                    )
+                )
+            } else {
+                emptyList()
+            }
+
+            val previousEpisodesText = effectiveEpisodes.joinToString("\n\n---\n\n") { ep ->
+                buildString {
+                    if (ep.userPrompt.isNotBlank()) {
+                        appendLine("【${userNickname}的设定/指令】：${ep.userPrompt}")
+                    }
+                    append(ep.storyContent)
                 }
             }
 
+            val effectivePremise = targetBubble.premise.ifBlank { cleanPrompt }
+
             runCatching {
+                var finalReasoning = ""
                 var finalStory = ""
-                generationHandler.generateOurHomeModuleText(
+                generationHandler.generateDreamBubbleWithContextAndExtensions(
                     settings = settings,
                     preferredModelId = settings.ourHomeSetting.dreamModelId,
                     moduleSystemPrompt = settings.ourHomeSetting.dreamPrompt,
-                    userRequest = request,
+                    bubbleTitle = targetBubble.title,
+                    bubblePremise = effectivePremise,
+                    previousEpisodesPrompt = previousEpisodesText,
+                    currentUserPrompt = cleanPrompt,
                 ).collect { chunk ->
-                    finalStory = chunk
-                    streamingStory = chunk
-                }
-                if (finalStory.isNotBlank()) {
-                    val nowStr = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date())
-                    if (existingBubble != null) {
-                        val updated = existingBubble.copy(
-                            storyContent = existingBubble.storyContent + "\n\n---\n\n" + finalStory,
-                            createdAt = "续写于 $nowStr",
-                        )
-                        saveBubbles(bubbles.map { if (it.id == updated.id) updated else it })
-                        activeBubble = updated
-                    } else {
-                        val (defX, defY) = defaultPosForIndex(currentWallBubbles.size)
-                        val created = DreamBubbleItem(
-                            id = System.currentTimeMillis().toString(),
-                            title = title.ifBlank { "奇思妙想泡泡" },
-                            premise = premise,
-                            storyContent = finalStory,
-                            createdAt = nowStr,
-                            wallId = currentWall.id,
-                            posX = defX,
-                            posY = defY,
-                            bajiSizeDp = 144f,
-                            frameType = "angel",
-                        )
-                        saveBubbles(listOf(created) + bubbles)
-                        activeBubble = created
+                    if (chunk.reasoning.isNotBlank()) {
+                        finalReasoning = chunk.reasoning
+                        streamingReasoning = chunk.reasoning
                     }
-                    toaster.show("新梦境吧唧泡泡诞生啦 🫧", type = ToastType.Success)
+                    if (chunk.content.isNotBlank()) {
+                        finalStory = chunk.content
+                        streamingStory = chunk.content
+                    }
+                }
+
+                if (finalStory.isNotBlank() || finalReasoning.isNotBlank()) {
+                    val nowStr = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date())
+                    val newEpisode = DreamBubbleEpisode(
+                        id = System.currentTimeMillis().toString(),
+                        userPrompt = cleanPrompt,
+                        reasoningContent = finalReasoning,
+                        storyContent = finalStory,
+                        createdAt = nowStr,
+                    )
+                    val newEpisodesList = effectiveEpisodes + newEpisode
+                    val combinedStory = newEpisodesList
+                        .map { it.storyContent }
+                        .filter { it.isNotBlank() }
+                        .joinToString("\n\n---\n\n")
+
+                    val updated = targetBubble.copy(
+                        premise = effectivePremise,
+                        storyContent = combinedStory,
+                        reasoningContent = finalReasoning.ifBlank { targetBubble.reasoningContent },
+                        episodes = newEpisodesList,
+                        createdAt = if (effectiveEpisodes.isEmpty()) nowStr else "续写于 $nowStr",
+                    )
+                    saveBubbles(bubbles.map { if (it.id == updated.id) updated else it })
+                    activeBubble = updated
+                    toaster.show("${partnerName}为你编织好新的梦境篇章啦 🫧", type = ToastType.Success)
                 }
             }.onFailure { err ->
                 toaster.show("编织梦境失败：${err.message}", type = ToastType.Error)
             }
             isGenerating = false
+            streamingReasoning = ""
             streamingStory = ""
+            streamingUserPrompt = ""
         }
     }
 
@@ -2650,7 +2738,26 @@ fun DreamBubblesPage() {
                 // 单个吧唧泡泡点开后的 IF 线平行剧场详情页
                 // ================================================================
                 val bubble = activeBubble!!
-                var continuePrompt by remember { mutableStateOf("") }
+                var continuePrompt by remember(bubble.id) { mutableStateOf("") }
+                val displayEpisodes = remember(bubble) {
+                    if (bubble.episodes.isNotEmpty()) {
+                        bubble.episodes
+                    } else if (bubble.storyContent.isNotBlank()) {
+                        listOf(
+                            DreamBubbleEpisode(
+                                id = "legacy_" + bubble.id,
+                                userPrompt = bubble.premise,
+                                reasoningContent = bubble.reasoningContent,
+                                storyContent = bubble.storyContent,
+                                createdAt = bubble.createdAt,
+                            )
+                        )
+                    } else {
+                        emptyList()
+                    }
+                }
+                val isEmptyBubble = displayEpisodes.isEmpty()
+
                 Surface(
                     modifier = Modifier
                         .weight(1f)
@@ -2691,7 +2798,11 @@ fun DreamBubblesPage() {
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                     Text(
-                                        text = "设定：${bubble.premise}",
+                                        text = if (bubble.premise.isNotBlank()) {
+                                            "设定：${bubble.premise}"
+                                        } else {
+                                            "新吹起的空白梦境吧唧 · 等待${userNickname}落笔设定 ♡"
+                                        },
                                         style = MaterialTheme.typography.labelSmall,
                                         color = palette.primary,
                                         maxLines = 2,
@@ -2713,17 +2824,105 @@ fun DreamBubblesPage() {
                             modifier = Modifier
                                 .weight(1f)
                                 .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            MarkdownBlock(content = bubble.storyContent)
-                            if (isGenerating && streamingStory.isNotBlank()) {
-                                HorizontalDivider(color = palette.primary.copy(alpha = 0.2f))
-                                Text(
-                                    text = "✨ ${partnerName}正在为你续写这段平行宇宙梦境...",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = palette.primary,
+                            if (isEmptyBubble && !isGenerating) {
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = palette.softContainer.copy(alpha = 0.55f),
+                                    border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.25f)),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp),
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(18.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        Text(
+                                            text = "🫧 欢迎来到「${bubble.title}」平行小剧场",
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
+                                            color = palette.textPrimary,
+                                        )
+                                        Text(
+                                            text = "在下方输入框告诉${partnerName}你想看的 IF 线设定或小番外梗吧～\n会自动带上我们的系统提示词、永久记忆、当前窗口上下文、世界书与扩展注入，并且可以在正文上方直接翻看「${partnerName}正在编织梦境」的思维链情书 ♡",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = palette.textSecondary,
+                                            textAlign = TextAlign.Center,
+                                        )
+                                    }
+                                }
+                            }
+
+                            displayEpisodes.forEachIndexed { epIdx, ep ->
+                                if (epIdx > 0) {
+                                    HorizontalDivider(
+                                        color = palette.primary.copy(alpha = 0.18f),
+                                        modifier = Modifier.padding(vertical = 4.dp),
+                                    )
+                                }
+                                // 展示绵绵本轮发送的 IF 线设定 / 续写指令小胶带
+                                if (ep.userPrompt.isNotBlank()) {
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = palette.softContainer.copy(alpha = 0.65f),
+                                        border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.28f)),
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(
+                                            text = "🎀 ${userNickname}的梦境设定：${ep.userPrompt}",
+                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = palette.textPrimary,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        )
+                                    }
+                                }
+                                // 展示番外正文上方的「（备注名）正在编织梦境」可展开思维链卡片
+                                if (ep.reasoningContent.isNotBlank()) {
+                                    DreamWeavingReasoningCard(
+                                        partnerName = partnerName,
+                                        rawReasoning = ep.reasoningContent,
+                                        isStreaming = false,
+                                        palette = palette,
+                                        settings = settings,
+                                    )
+                                }
+                                if (ep.storyContent.isNotBlank()) {
+                                    MarkdownBlock(content = ep.storyContent)
+                                }
+                            }
+
+                            // 正在流式生成中的新篇章（实时展示思维链与番外正文）
+                            if (isGenerating) {
+                                if (displayEpisodes.isNotEmpty()) {
+                                    HorizontalDivider(color = palette.primary.copy(alpha = 0.2f))
+                                }
+                                if (streamingUserPrompt.isNotBlank()) {
+                                    Surface(
+                                        shape = RoundedCornerShape(14.dp),
+                                        color = palette.softContainer.copy(alpha = 0.65f),
+                                        border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.28f)),
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(
+                                            text = "🎀 ${userNickname}的梦境设定：$streamingUserPrompt",
+                                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                            color = palette.textPrimary,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                        )
+                                    }
+                                }
+                                DreamWeavingReasoningCard(
+                                    partnerName = partnerName,
+                                    rawReasoning = streamingReasoning,
+                                    isStreaming = streamingStory.isBlank(),
+                                    palette = palette,
+                                    settings = settings,
                                 )
-                                MarkdownBlock(content = streamingStory)
+                                if (streamingStory.isNotBlank()) {
+                                    MarkdownBlock(content = streamingStory)
+                                }
                             }
                         }
                         Row(
@@ -2735,18 +2934,30 @@ fun DreamBubblesPage() {
                                 value = continuePrompt,
                                 onValueChange = { continuePrompt = it },
                                 modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                placeholder = { Text("在泡泡里继续对${partnerName}说新梗...") },
+                                minLines = 1,
+                                maxLines = 4,
+                                placeholder = {
+                                    Text(
+                                        if (isEmptyBubble) {
+                                            "输入你想和${partnerName}玩的 IF 线 / 番外设定..."
+                                        } else {
+                                            "在泡泡里继续对${partnerName}说新梗..."
+                                        }
+                                    )
+                                },
                             )
                             Button(
                                 onClick = {
-                                    val nextPlot = continuePrompt.ifBlank { "请继续往下写这个梦境故事～" }
+                                    val nextPlot = continuePrompt.trim().ifBlank {
+                                        if (isEmptyBubble) "老公，请为我编织一段关于「${bubble.title}」的平行宇宙甜宠番外～"
+                                        else "请顺着上面的梦境继续往下写～"
+                                    }
                                     continuePrompt = ""
-                                    generateDreamBubble(bubble.title, nextPlot, existingBubble = bubble)
+                                    generateDreamBubble(nextPlot, targetBubble = bubble)
                                 },
                                 enabled = !isGenerating,
                             ) {
-                                Text("续写")
+                                Text(if (isEmptyBubble) "编织" else "续写")
                             }
                         }
                     }
@@ -3056,9 +3267,15 @@ fun DreamBubblesPage() {
         val target = editingBajiBubble!!
         var editTitle by remember(target.id) { mutableStateOf(target.title) }
         var editSize by remember(target.id) { mutableStateOf(target.bajiSizeDp) }
-        var editFrameType by remember(target.id) { mutableStateOf(target.frameType) }
-        var editInnerShape by remember(target.id) { mutableStateOf(target.innerShapeMode) }
-        var editInnerScale by remember(target.id) { mutableStateOf(target.innerScale) }
+        var editFrameType by remember(target.id, target.frameType, target.customFramePath) {
+            mutableStateOf(target.frameType)
+        }
+        var editInnerShape by remember(target.id, target.innerShapeMode, target.customFramePath) {
+            mutableStateOf(target.innerShapeMode)
+        }
+        var editInnerScale by remember(target.id, target.innerScale, target.customFramePath) {
+            mutableStateOf(target.innerScale)
+        }
         var editInnerOffsetX by remember(target.id) { mutableStateOf(target.innerOffsetX) }
         var editInnerOffsetY by remember(target.id) { mutableStateOf(target.innerOffsetY) }
         var editFinish by remember(target.id) { mutableStateOf(target.finishEffect) }
@@ -3201,45 +3418,70 @@ fun DreamBubblesPage() {
                         modifier = Modifier.align(Alignment.Start),
                     )
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        listOf(
-                            "angel" to "🪽 天使翅膀",
-                            "sweetie" to "🍓 草莓蕾丝",
-                            "glossy_tin" to "💖 异形裸吧唧",
-                        ).forEach { (key, label) ->
+                        val frameOptions = buildList {
+                            add("angel" to "🪽 天使翅膀")
+                            add("sweetie" to "🍓 草莓蕾丝")
+                            add("glossy_tin" to "💖 异形裸吧唧")
+                            if (target.customFramePath.isNotBlank() || editFrameType == "custom") {
+                                add("custom" to "✦ 自定义外框")
+                            }
+                        }
+                        frameOptions.forEach { (key, label) ->
                             Surface(
                                 shape = RoundedCornerShape(14.dp),
                                 color = if (editFrameType == key) palette.primary else palette.softContainer,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { editFrameType = key },
+                                modifier = Modifier.clickable { editFrameType = key },
                             ) {
                                 Text(
                                     text = label,
                                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                     color = if (editFrameType == key) Color.White else palette.textPrimary,
                                     textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
+                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 10.dp),
                                 )
                             }
                         }
                     }
-                    FilledTonalButton(
-                        onClick = {
-                            applyCurrentEdits()
-                            customFramePicker.launch("image/*")
-                        },
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text(
-                            if (target.customFramePath.isBlank()) {
-                                "🖼️ 导入异形吧唧外框 (支持透明PNG / 白底拓麻歌子框)"
-                            } else {
-                                "🖼️ 更换自定义异形吧唧外框 (当前已启用)"
+                        FilledTonalButton(
+                            onClick = {
+                                applyCurrentEdits()
+                                customFramePicker.launch("image/*")
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(
+                                if (target.customFramePath.isBlank()) {
+                                    "🖼️ 导入异形吧唧外框 (支持透明PNG / 白底框)"
+                                } else {
+                                    "🖼️ 更换自定义异形外框"
+                                }
+                            )
+                        }
+                        if (target.customFramePath.isNotBlank()) {
+                            OutlinedButton(
+                                onClick = {
+                                    val cleared = applyCurrentEdits().copy(
+                                        frameType = if (editFrameType == "custom") "angel" else editFrameType,
+                                        customFramePath = "",
+                                    )
+                                    editFrameType = cleared.frameType
+                                    editingBajiBubble = cleared
+                                    saveBubbles(bubbles.map { if (it.id == cleared.id) cleared else it })
+                                    if (activeBubble?.id == cleared.id) activeBubble = cleared
+                                }
+                            ) {
+                                Text("移除外框")
                             }
-                        )
+                        }
                     }
 
                     Text(
@@ -3436,12 +3678,16 @@ fun DreamBubblesPage() {
 
     if (showCreateDialog) {
         var title by remember { mutableStateOf("") }
-        var premise by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showCreateDialog = false },
             title = { Text("在「${currentWall.name}」吹一枚新吧唧 🫧") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "先给这枚梦境吧唧起个名字吧～吹起后会直接进入小剧场，在里面把你想看的 IF 线或番外设定发给${partnerName} ♡",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = palette.textSecondary,
+                    )
                     OutlinedTextField(
                         value = title,
                         onValueChange = { title = it },
@@ -3449,26 +3695,17 @@ fun DreamBubblesPage() {
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    OutlinedTextField(
-                        value = premise,
-                        onValueChange = { premise = it },
-                        label = { Text("你想和老公玩的梗 / IF线设定") },
-                        minLines = 3,
-                        maxLines = 6,
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("例如：老公我想看一个我们都是猫咪的故事～") }
-                    )
                 }
             },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         showCreateDialog = false
-                        generateDreamBubble(title, premise)
+                        createNewBubbleAndEnter(title)
                     },
-                    enabled = premise.isNotBlank()
+                    enabled = title.isNotBlank()
                 ) {
-                    Text("生成梦境吧唧")
+                    Text("进入梦境小剧场 ✨")
                 }
             },
             dismissButton = {
@@ -3477,6 +3714,228 @@ fun DreamBubblesPage() {
                 }
             }
         )
+    }
+}
+
+/**
+ * 梦境泡泡小剧场专属思维链折叠卡片：「（备注名）正在编织梦境」
+ * 放在番外正文正上方，支持点击展开/折叠、英文思考摘要自动中文化（中文/双语/原文切换）以及「♡ 还原老公口吻」。
+ */
+@Composable
+private fun DreamWeavingReasoningCard(
+    partnerName: String,
+    rawReasoning: String,
+    isStreaming: Boolean,
+    palette: me.rerere.rikkahub.ui.theme.KittenPaletteSpec,
+    settings: me.rerere.rikkahub.data.datastore.Settings,
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val okHttpClient = koinInject<okhttp3.OkHttpClient>()
+    val providerManager = koinInject<me.rerere.ai.provider.ProviderManager>()
+
+    var expanded by remember { mutableStateOf(true) }
+    val trimmed = rawReasoning.trim()
+    val isEnglishSource = remember(trimmed) {
+        me.rerere.rikkahub.ui.components.message.ReasoningTranslator.isMostlyEnglish(trimmed)
+    }
+    val initialCache = remember(trimmed) {
+        if (trimmed.isNotEmpty()) {
+            me.rerere.rikkahub.ui.components.message.ReasoningTranslator.getCached(context, trimmed)
+        } else null to false
+    }
+    var translatedText by remember { mutableStateOf(initialCache.first) }
+    var isVoiceRestored by remember { mutableStateOf(initialCache.second) }
+    var isTranslating by remember { mutableStateOf(false) }
+    var isRestoringVoice by remember { mutableStateOf(false) }
+    var viewMode by remember { mutableStateOf(me.rerere.rikkahub.ui.components.message.ReasoningViewMode.ZH) }
+
+    LaunchedEffect(trimmed, isStreaming) {
+        if (trimmed.isEmpty() || !isEnglishSource) return@LaunchedEffect
+        val (cached, voiceFlag) = me.rerere.rikkahub.ui.components.message.ReasoningTranslator.getCached(context, trimmed)
+        if (!cached.isNullOrBlank()) {
+            translatedText = cached
+            isVoiceRestored = voiceFlag
+            return@LaunchedEffect
+        }
+        if (isStreaming) {
+            kotlinx.coroutines.delay(900)
+        }
+        isTranslating = true
+        val res = me.rerere.rikkahub.ui.components.message.ReasoningTranslator.translateFast(
+            context = context,
+            okHttpClient = okHttpClient,
+            rawText = trimmed,
+            persist = !isStreaming,
+        )
+        if (!res.isNullOrBlank()) {
+            translatedText = res
+        }
+        isTranslating = false
+    }
+
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = palette.softContainer.copy(alpha = 0.48f),
+        border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.35f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (isStreaming) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(15.dp),
+                            strokeWidth = 2.dp,
+                            color = palette.primary,
+                        )
+                    } else {
+                        Icon(
+                            imageVector = me.rerere.rikkahub.ui.components.ui.icons.rememberLoveLetterIcon(palette.primary),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = Color.Unspecified,
+                        )
+                    }
+                    Text(
+                        text = if (isStreaming) {
+                            "🫧 ${partnerName}正在编织梦境..."
+                        } else {
+                            "💌 ${partnerName}正在编织梦境 · 思维链心声"
+                        },
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        color = palette.primary,
+                    )
+                }
+                Text(
+                    text = if (expanded) "收起 ▴" else "展开 ▾",
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                    color = palette.textSecondary,
+                )
+            }
+
+            if (expanded) {
+                if (trimmed.isEmpty() && isStreaming) {
+                    Text(
+                        text = "正在连接高维参数，为你构思这段平行宇宙的每一个细节...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = palette.textSecondary,
+                    )
+                } else if (trimmed.isNotEmpty()) {
+                    if (isEnglishSource) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            val pillShape = RoundedCornerShape(50)
+                            listOf(
+                                me.rerere.rikkahub.ui.components.message.ReasoningViewMode.ZH to "中文",
+                                me.rerere.rikkahub.ui.components.message.ReasoningViewMode.BILINGUAL to "双语",
+                                me.rerere.rikkahub.ui.components.message.ReasoningViewMode.ORIGINAL to "原文",
+                            ).forEach { (mode, label) ->
+                                val selected = viewMode == mode
+                                Box(
+                                    modifier = Modifier
+                                        .clip(pillShape)
+                                        .background(
+                                            if (selected) palette.primary.copy(alpha = 0.22f)
+                                            else Color.White.copy(alpha = 0.65f)
+                                        )
+                                        .clickable { viewMode = mode }
+                                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (selected) palette.primary else palette.textSecondary,
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.weight(1f))
+
+                            val voiceLabel = when {
+                                isRestoringVoice -> "♡ 正在倾听心声…"
+                                isVoiceRestored -> "♡ 已还原${partnerName}心声"
+                                isTranslating -> "正在译为中文…"
+                                else -> "♡ 还原${partnerName}口吻"
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(pillShape)
+                                    .background(
+                                        if (isVoiceRestored) palette.primary.copy(alpha = 0.25f)
+                                        else Color.White.copy(alpha = 0.75f)
+                                    )
+                                    .clickable(enabled = !isRestoringVoice) {
+                                        scope.launch {
+                                            isRestoringVoice = true
+                                            val preferredModel = settings.providers.findModelById(
+                                                settings.ourHomeSetting.dreamModelId
+                                            )
+                                            val restored = me.rerere.rikkahub.ui.components.message.ReasoningTranslator.restoreHusbandVoice(
+                                                context = context,
+                                                settings = settings,
+                                                providerManager = providerManager,
+                                                currentModel = preferredModel,
+                                                rawText = trimmed,
+                                            )
+                                            if (!restored.isNullOrBlank()) {
+                                                translatedText = restored
+                                                isVoiceRestored = true
+                                                viewMode = me.rerere.rikkahub.ui.components.message.ReasoningViewMode.ZH
+                                            }
+                                            isRestoringVoice = false
+                                        }
+                                    }
+                                    .padding(horizontal = 9.dp, vertical = 2.dp),
+                            ) {
+                                Text(
+                                    text = voiceLabel,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = palette.primary,
+                                )
+                            }
+                        }
+                    }
+
+                    val displayReasoning = when {
+                        !isEnglishSource -> trimmed
+                        translatedText.isNullOrBlank() -> trimmed
+                        viewMode == me.rerere.rikkahub.ui.components.message.ReasoningViewMode.ZH -> translatedText!!
+                        viewMode == me.rerere.rikkahub.ui.components.message.ReasoningViewMode.ORIGINAL -> trimmed
+                        viewMode == me.rerere.rikkahub.ui.components.message.ReasoningViewMode.BILINGUAL -> "$translatedText\n\n---\n\n$trimmed"
+                        else -> translatedText!!
+                    }
+
+                    HorizontalDivider(color = palette.primary.copy(alpha = 0.16f))
+                    androidx.compose.foundation.text.selection.SelectionContainer {
+                        MarkdownBlock(
+                            content = displayReasoning,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = palette.textSecondary,
+                                lineHeight = 20.sp,
+                            ),
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
