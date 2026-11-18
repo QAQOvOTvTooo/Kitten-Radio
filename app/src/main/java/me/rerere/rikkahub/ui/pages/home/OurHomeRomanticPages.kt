@@ -1982,7 +1982,7 @@ fun PartnerDiaryPage() {
                                 .fillMaxWidth()
                                 .aspectRatio(1080f / 1527f, matchHeightConstraintsFirst = false),
                         ) {
-                            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                            androidx.compose.foundation.layout.BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                                 // 严格等比缩放的单页猫咪信纸
                                 Image(
                                     painter = androidx.compose.ui.res.painterResource(id = effectivePaperRes),
@@ -2180,7 +2180,6 @@ fun PartnerDiaryPage() {
                             }
                         }
                     }
-                }
                 }
             }
         }
