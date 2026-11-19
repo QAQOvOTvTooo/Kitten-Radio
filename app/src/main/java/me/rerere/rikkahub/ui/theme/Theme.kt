@@ -27,7 +27,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import coil3.compose.AsyncImage
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import me.rerere.rikkahub.ui.context.LocalSettings
 import java.io.File
