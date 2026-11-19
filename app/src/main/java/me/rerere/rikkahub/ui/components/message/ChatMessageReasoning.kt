@@ -394,9 +394,19 @@ private fun ReasoningContent(
 ) {
     val isPreview = expandState == ReasoningCardState.Preview
     val displaySettings = LocalDisplaySettings.current
+    val settings = LocalSettings.current
+    val customCotTextColor = remember(settings.ourHomeSetting.cotTextHex) {
+        val hex = settings.ourHomeSetting.cotTextHex.trim()
+        if (hex.isNotBlank()) {
+            runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrNull()
+        } else {
+            null
+        }
+    }
     val thinkingStyle = MaterialTheme.typography.bodySmall.copy(
         fontSize = MaterialTheme.typography.bodySmall.fontSize * displaySettings.thinkingFontSizeRatio,
         lineHeight = MaterialTheme.typography.bodySmall.lineHeight * displaySettings.thinkingFontSizeRatio,
+        color = customCotTextColor ?: Color.Unspecified,
     )
     val isEnglishSource = remember(reasoning.reasoning) {
         ReasoningTranslator.isMostlyEnglish(reasoning.reasoning)

@@ -909,13 +909,35 @@ private fun TopBar(
         )
     }
 
+    val topBarHeaderBgUrl = remember(settings.ourHomeSetting.customTopBarHeaderBgPath, settings.ourHomeSetting.customCss) {
+        settings.ourHomeSetting.customTopBarHeaderBgPath.ifBlank {
+            Regex("""\.topbar-header\s*\{[^}]*background(?:-image)?\s*:\s*[^;]*?url\(\s*['"]?([^'")\s]+)['"]?\s*\)""", RegexOption.IGNORE_CASE)
+                .find(settings.ourHomeSetting.customCss)?.groupValues?.getOrNull(1).orEmpty()
+        }
+    }
+    val hasTopBarHeaderImg = remember(topBarHeaderBgUrl) {
+        topBarHeaderBgUrl.startsWith("http://") ||
+            topBarHeaderBgUrl.startsWith("https://") ||
+            (topBarHeaderBgUrl.isNotBlank() && java.io.File(topBarHeaderBgUrl).exists())
+    }
+
     Column(modifier = Modifier.fillMaxWidth()) {
-        CenterAlignedTopAppBar(
-            expandedHeight = 46.dp,
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = palette.secondaryContainer,
-                scrolledContainerColor = palette.secondaryContainer,
-            ),
+        Box(modifier = Modifier.fillMaxWidth()) {
+            if (hasTopBarHeaderImg) {
+                val modelData: Any = if (topBarHeaderBgUrl.startsWith("http")) topBarHeaderBgUrl else java.io.File(topBarHeaderBgUrl)
+                coil3.compose.AsyncImage(
+                    model = modelData,
+                    contentDescription = "顶栏背景图",
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.matchParentSize(),
+                )
+            }
+            CenterAlignedTopAppBar(
+                expandedHeight = 46.dp,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = if (hasTopBarHeaderImg) Color.Transparent else palette.secondaryContainer,
+                    scrolledContainerColor = if (hasTopBarHeaderImg) Color.Transparent else palette.secondaryContainer,
+                ),
             navigationIcon = {
                 if (!bigScreen) {
                     IconButton(
@@ -961,6 +983,7 @@ private fun TopBar(
                     border = materialModeBorderStroke(),
                     modifier = Modifier.widthIn(min = 240.dp, max = 320.dp),
                 ) {
+                    me.rerere.rikkahub.ui.theme.KittenPopupBgWrapper {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1077,6 +1100,7 @@ private fun TopBar(
                             }
                         }
                     }
+                    }
                 }
             }
         },
@@ -1104,6 +1128,7 @@ private fun TopBar(
             }
         },
     )
+    }
 
         // Sweet Chat 方案B升级版：加粗双层云朵幕布折边 + 错落星蝶椭圆珠链 + 6个精致吊饰（★ 🎀 🌙✦ ☆ 💗 ❄️）
         val infiniteCharm = androidx.compose.animation.core.rememberInfiniteTransition(label = "charmSway")
@@ -1119,10 +1144,16 @@ private fun TopBar(
         androidx.compose.foundation.Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(86.dp)
-                .clickable {
-                    toaster.show(charmQuotes.random(), type = ToastType.Success)
-                }
+                .height(if (settings.ourHomeSetting.showTopBarCharms) 86.dp else 36.dp)
+                .then(
+                    if (settings.ourHomeSetting.showTopBarCharms) {
+                        Modifier.clickable {
+                            toaster.show(charmQuotes.random(), type = ToastType.Success)
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             val w = size.width
             val segs = 4
@@ -1552,23 +1583,25 @@ private fun TopBar(
                 color = Color.White,
             )
 
-            // 最上层：100% 实心不透底云朵顶栏主体
-            val cloudFillPath = androidx.compose.ui.graphics.Path().apply {
-                moveTo(0f, -2f)
-                lineTo(w, -2f)
-                lineTo(w, cloudBaseY)
-                for (i in segs downTo 1) {
-                    val xStart = i * segW
-                    val xEnd = (i - 1) * segW
-                    val xMid = (xStart + xEnd) / 2f
-                    quadraticBezierTo(xMid, cloudBaseY + cloudSag, xEnd, cloudBaseY)
+            // 最上层：100% 实心不透底云朵顶栏主体（当设置了自定义顶栏备注区背景图时，隐藏纯色填充以免形成横线色块）
+            if (!hasTopBarHeaderImg) {
+                val cloudFillPath = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(0f, -2f)
+                    lineTo(w, -2f)
+                    lineTo(w, cloudBaseY)
+                    for (i in segs downTo 1) {
+                        val xStart = i * segW
+                        val xEnd = (i - 1) * segW
+                        val xMid = (xStart + xEnd) / 2f
+                        quadraticBezierTo(xMid, cloudBaseY + cloudSag, xEnd, cloudBaseY)
+                    }
+                    close()
                 }
-                close()
+                drawPath(
+                    path = cloudFillPath,
+                    color = palette.secondaryContainer,
+                )
             }
-            drawPath(
-                path = cloudFillPath,
-                color = palette.secondaryContainer,
-            )
         }
     }
     remarkEditState.EditStateContent { remark, onUpdate ->

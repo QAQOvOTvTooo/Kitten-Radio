@@ -183,6 +183,7 @@ internal fun FilesPicker(
             .padding(vertical = 4.dp),
         contentAlignment = Alignment.Center,
     ) {
+        val customMenuBgPath = settings.ourHomeSetting.customSweetMenuBgPath
         BoxWithConstraints(
             modifier = Modifier
                 .heightIn(max = maxMenuHeight)
@@ -192,13 +193,22 @@ internal fun FilesPicker(
             val mw = maxWidth
             val mh = maxHeight
 
-            Image(
-                painter = painterResource(id = R.drawable.kitten_chat_sweet_menu),
-                contentDescription = "Sweet Moments Menu",
-                colorFilter = assetColorFilter,
-                contentScale = ContentScale.FillBounds,
-                modifier = Modifier.fillMaxSize(),
-            )
+            if (customMenuBgPath.isNotBlank() && java.io.File(customMenuBgPath).exists()) {
+                coil3.compose.AsyncImage(
+                    model = java.io.File(customMenuBgPath),
+                    contentDescription = "Sweet Moments Menu",
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.kitten_chat_sweet_menu),
+                    contentDescription = "Sweet Moments Menu",
+                    colorFilter = assetColorFilter,
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
 
             // 通用透明菜名热区 + 虚线上方精致当前状态小副标
             @Composable
@@ -373,6 +383,7 @@ internal fun FilesPicker(
             sheetState = modelSheetState,
             containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
         ) {
+            me.rerere.rikkahub.ui.theme.KittenPopupBgWrapper {
             Column(
                 modifier = Modifier
                     .padding(8.dp)
@@ -402,6 +413,7 @@ internal fun FilesPicker(
                     }
                 )
             }
+            }
         }
     }
 
@@ -412,6 +424,7 @@ internal fun FilesPicker(
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
         ) {
+            me.rerere.rikkahub.ui.theme.KittenPopupBgWrapper {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -470,6 +483,7 @@ internal fun FilesPicker(
                     }
                 )
             }
+            }
         }
     }
 
@@ -491,6 +505,7 @@ internal fun FilesPicker(
             onDismissRequest = { showWorkspaceBakerySheet = false },
             containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
         ) {
+            me.rerere.rikkahub.ui.theme.KittenPopupBgWrapper {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -575,6 +590,7 @@ internal fun FilesPicker(
                 }
                 Spacer(Modifier.height(12.dp))
             }
+            }
         }
 
         if (showSelectSubSheet) {
@@ -614,6 +630,7 @@ private fun InjectionQuickConfigSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
     ) {
+        me.rerere.rikkahub.ui.theme.KittenPopupBgWrapper {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -648,6 +665,7 @@ private fun InjectionQuickConfigSheet(
                 })
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
         }
     }
 }

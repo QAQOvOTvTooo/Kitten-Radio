@@ -758,6 +758,8 @@ data class OurHomeSetting(
     val cotBackgroundImageUrl: String = "",
     val cotPaperStyle: String = "default",
     val showTopBarCharms: Boolean = true,
+    val customTopBarHeaderBgPath: String = "",
+    val customPopupBgPath: String = "",
     val customTopBarBannerPath: String = "",
     val customSweetMenuBgPath: String = "",
     val customDrawerPlayerImagePath: String = "",

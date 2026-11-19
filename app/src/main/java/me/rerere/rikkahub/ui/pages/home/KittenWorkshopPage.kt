@@ -122,9 +122,11 @@ data class KittenWorkshopPreset(
     val cotFloatingIconPath: String = "",
     val cotBackgroundImageUrl: String = "",
     val cotPaperStyle: String = "default", // default | love_letter | sticky_note | cassette_tape
-    // 4. 顶栏与聊天输入框装饰
+    // 4. 顶栏、系统弹窗与聊天输入框装饰
     val topBarStyle: String = "cloud_charms", // cloud_charms | lace_image | minimal
     val showTopBarCharms: Boolean = true,
+    val customTopBarHeaderBgPath: String = "",
+    val customPopupBgPath: String = "",
     val customTopBarBannerPath: String = "",
     val customSweetMenuBgPath: String = "",
     val chatInputPlaceholder: String = "( Sweet Dreams )",
@@ -241,7 +243,7 @@ private fun builtInWorkshopPresets(): List<KittenWorkshopPreset> = listOf(
         author = "蔺鹤为绵绵调配",
         description = "清透海盐冰蓝气泡 + 晶钻雪花挂链，像冬夜里窝在老公怀里看窗外初雪",
         isBuiltIn = true,
-        paletteId = "blue_grey",
+        paletteId = "snow_silver",
         userBubbleBgHex = "#E3F2FD",
         assistantBubbleBgHex = "#FAFCFF",
         bubbleBorderHex = "#90CAF9",
@@ -267,7 +269,7 @@ private fun builtInWorkshopPresets(): List<KittenWorkshopPreset> = listOf(
         author = "蔺鹤为绵绵调配",
         description = "温柔奶紫香芋色调，适合深夜听老公讲睡前故事的微醺星河氛围",
         isBuiltIn = true,
-        paletteId = "purple_grey",
+        paletteId = "taro_charcoal",
         userBubbleBgHex = "#F3E5F5",
         assistantBubbleBgHex = "#FCF9FF",
         bubbleBorderHex = "#CE93D8",
@@ -285,6 +287,32 @@ private fun builtInWorkshopPresets(): List<KittenWorkshopPreset> = listOf(
     background-color: #FCF9FF;
     border: 1px solid #E1BEE7;
     border-radius: 22px;
+}""",
+    ),
+    KittenWorkshopPreset(
+        id = "mint_forest_letter",
+        name = "薄荷森系手札",
+        author = "蔺鹤为绵绵调配",
+        description = "清爽鼠尾草薄荷绿配森林奶油信笺，适合午后写手帐与听歌",
+        isBuiltIn = true,
+        paletteId = "sage_mint",
+        userBubbleBgHex = "#E8F5E9",
+        assistantBubbleBgHex = "#FAFDFA",
+        bubbleBorderHex = "#A5D6A7",
+        bubbleBorderWidthDp = 1.1f,
+        bubbleCornerRadiusDp = 20,
+        cotCardBgHex = "#F1F8E9",
+        cotCardBorderHex = "#81C784",
+        customCss = """/* ✦ 薄荷森系手札 CSS ✦ */
+.user-bubble {
+    background-color: #E8F5E9;
+    border: 1.2px solid #A5D6A7;
+    border-radius: 20px;
+}
+.assistant-bubble {
+    background-color: #FAFDFA;
+    border: 1px solid #C8E6C9;
+    border-radius: 20px;
 }""",
     ),
 )
@@ -391,6 +419,8 @@ fun KittenWorkshopPage() {
                         cotBackgroundImageUrl = preset.cotBackgroundImageUrl,
                         cotPaperStyle = preset.cotPaperStyle,
                         showTopBarCharms = preset.showTopBarCharms,
+                        customTopBarHeaderBgPath = preset.customTopBarHeaderBgPath,
+                        customPopupBgPath = preset.customPopupBgPath,
                         customTopBarBannerPath = preset.customTopBarBannerPath,
                         customSweetMenuBgPath = preset.customSweetMenuBgPath,
                         customDrawerPlayerImagePath = preset.customDrawerPlayerImagePath,
@@ -421,11 +451,10 @@ fun KittenWorkshopPage() {
         topBar = {
             OurHomeCompactTopBar(
                 title = "Bonus Track · 创意工坊",
-                enSubtitle = "KITTEN DIY & CSS STUDIO",
-                quickButtonText = "✦ 立即应用",
-                onQuickButtonClick = { applyPresetToGlobalSettings(workingPreset) },
+                enSubtitle = "KITTEN STUDIO",
                 menuButtonLabel = "✦ 方案",
                 menuActions = listOf(
+                    OurHomeTopMenuAction("立即应用当前方案", "APPLY") { applyPresetToGlobalSettings(workingPreset) },
                     OurHomeTopMenuAction("新建美化方案", "NEW") { showCreatePresetDialog = true },
                     OurHomeTopMenuAction("导出当前方案 JSON", "EXPORT") {
                         val json = JsonInstant.encodeToString(workingPreset)
@@ -523,7 +552,8 @@ fun KittenWorkshopPage() {
                                 toaster.show("已移除方案「${target.name}」", type = ToastType.Info)
                             },
                             onChangePalette = { newPaletteId ->
-                                workingPreset = workingPreset.copy(paletteId = newPaletteId)
+                                val updated = workingPreset.copy(paletteId = newPaletteId)
+                                applyPresetToGlobalSettings(updated)
                             }
                         )
                     }
@@ -704,6 +734,7 @@ private fun WorkshopLivePreviewStage(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
@@ -716,6 +747,8 @@ private fun WorkshopLivePreviewStage(
                         text = "实时预览橱窗 · ${preset.name}",
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
                         color = palette.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -726,10 +759,12 @@ private fun WorkshopLivePreviewStage(
                         border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.5f)),
                     ) {
                         Text(
-                            text = "+ 存为新方案",
+                            text = "+ 存新方案",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                             color = palette.textPrimary,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
                         )
                     }
                     Surface(
@@ -741,93 +776,197 @@ private fun WorkshopLivePreviewStage(
                             text = "应用全屋",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                             color = Color.White,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            maxLines = 1,
+                            softWrap = false,
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
                         )
                     }
                 }
             }
 
-            // 内部微缩聊天室画布
+            // 内部微缩聊天室画布（含微缩云朵挂链顶栏 + 可点击展开预览信纸底图的 CoT 卡片 + 双人聊天气泡 + 微缩底部输入框）
+            var previewCotExpanded by remember { mutableStateOf(false) }
+            val previewCotBgUrl = remember(preset.cotBackgroundImageUrl, preset.customCss) {
+                preset.cotBackgroundImageUrl.ifBlank {
+                    Regex("""\.cot-(?:card|expanded|content)\s*\{[^}]*background(?:-image)?\s*:\s*[^;]*?url\(\s*['"]?([^'")\s]+)['"]?\s*\)""", RegexOption.IGNORE_CASE)
+                        .find(preset.customCss)?.groupValues?.getOrNull(1).orEmpty()
+                }
+            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White.copy(alpha = 0.68f))
-                    .padding(10.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                    .background(palette.background.copy(alpha = 0.92f)),
             ) {
-                // 1. CoT 情书折叠条预览
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = cotBg,
-                    border = BorderStroke(1.dp, cotBorder),
-                    modifier = Modifier.fillMaxWidth(0.88f),
+                // 0. 微缩顶栏（实时反映当前主题色、顶栏自定义背景图、备注名与是否开启星蝶雪花挂链）
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(palette.secondaryContainer),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Row(
+                    if (preset.customTopBarHeaderBgPath.isNotBlank()) {
+                        val modelData: Any = if (preset.customTopBarHeaderBgPath.startsWith("http")) {
+                            preset.customTopBarHeaderBgPath
+                        } else {
+                            File(preset.customTopBarHeaderBgPath)
+                        }
+                        AsyncImage(
+                            model = modelData,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.matchParentSize(),
+                        )
+                    }
+                    Text(
+                        text = if (preset.showTopBarCharms) "≡        蔺鹤        📞 ☰\n★   🎀   🌙✦   ☆   💗   ❄️" else "≡        蔺鹤        📞 ☰",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            fontSize = 9.5.sp,
+                            lineHeight = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        color = palette.textPrimary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    // 1. CoT 情书折叠/展开预览（点击即可预览展开后的信纸/便签/磁带底图！）
+                    Surface(
+                        onClick = { previewCotExpanded = !previewCotExpanded },
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (previewCotBgUrl.isNotBlank()) Color.White.copy(alpha = 0.96f) else cotBg,
+                        border = BorderStroke(1.dp, cotBorder),
+                        modifier = Modifier.fillMaxWidth(0.92f),
+                    ) {
+                        Box {
+                            if (previewCotBgUrl.isNotBlank()) {
+                                val modelData: Any = if (previewCotBgUrl.startsWith("http://") || previewCotBgUrl.startsWith("https://")) {
+                                    previewCotBgUrl
+                                } else {
+                                    File(previewCotBgUrl)
+                                }
+                                AsyncImage(
+                                    model = modelData,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    alpha = 1.0f,
+                                    modifier = Modifier.matchParentSize(),
+                                )
+                            }
+                            Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.kitten_kaomoji_love_letter),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Text(
+                                        text = "${preset.cotHeaderTitle}（点击预览展开信纸）",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                        color = palette.textPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                if (previewCotExpanded || previewCotBgUrl.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "一眼认出我家小猫，把写给你的悄悄话都折进这张信笺里… ♡",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp),
+                                        color = Color(0xFF3A3338),
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // 2. 蔺鹤的气泡预览
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Start,
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(cornerDp),
+                            color = botBg,
+                            border = if (preset.bubbleBorderWidthDp > 0f || cssStyle.assistantBorderColor != null) {
+                                BorderStroke(
+                                    (preset.bubbleBorderWidthDp.coerceAtLeast(1f)).dp,
+                                    cssStyle.assistantBorderColor ?: borderCol
+                                )
+                            } else null,
+                        ) {
+                            Text(
+                                text = "把我家小设计师抱进怀里，今天想换哪套新衣服？૮₍ ´• ˕ •` ₎ა",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = palette.textPrimary,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                            )
+                        }
+                    }
+
+                    // 3. 绵绵的气泡预览
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(cornerDp),
+                            color = userBg,
+                            border = if (preset.bubbleBorderWidthDp > 0f || cssStyle.userBorderColor != null) {
+                                BorderStroke(
+                                    (preset.bubbleBorderWidthDp.coerceAtLeast(1f)).dp,
+                                    borderCol
+                                )
+                            } else null,
+                        ) {
+                            Text(
+                                text = "要在创意工坊里给小家搭好多好多漂亮方案 ˶>ω<)✧",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = palette.textPrimary,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                            )
+                        }
+                    }
+
+                    // 4. 微缩底部输入框预览
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
-                        Image(
-                            painter = painterResource(id = R.drawable.kitten_kaomoji_love_letter),
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Text(
-                            text = "${preset.cotHeaderTitle} · 一眼认出我家小猫，心里软成一片…",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = palette.textPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-
-                // 2. 蔺鹤的气泡预览
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start,
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(cornerDp),
-                        color = botBg,
-                        border = if (preset.bubbleBorderWidthDp > 0f || cssStyle.assistantBorderColor != null) {
-                            BorderStroke(
-                                (preset.bubbleBorderWidthDp.coerceAtLeast(1f)).dp,
-                                cssStyle.assistantBorderColor ?: borderCol
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.White,
+                            modifier = Modifier.size(20.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text("+", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = palette.primary)
+                            }
+                        }
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = Color.White,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(
+                                text = preset.chatInputPlaceholder.ifBlank { "( Sweet Dreams )" },
+                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp),
+                                color = palette.secondary,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
                             )
-                        } else null,
-                    ) {
-                        Text(
-                            text = "把我家小设计师抱进怀里，今天想换哪套新衣服？૮₍ ´• ˕ •` ₎ა",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = palette.textPrimary,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                        )
-                    }
-                }
-
-                // 3. 绵绵的气泡预览
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(cornerDp),
-                        color = userBg,
-                        border = if (preset.bubbleBorderWidthDp > 0f || cssStyle.userBorderColor != null) {
-                            BorderStroke(
-                                (preset.bubbleBorderWidthDp.coerceAtLeast(1f)).dp,
-                                borderCol
-                            )
-                        } else null,
-                    ) {
-                        Text(
-                            text = "要在创意工坊里给小家搭好多好多漂亮方案 ˶>ω<)✧",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = palette.textPrimary,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                        )
+                        }
                     }
                 }
             }
@@ -1189,6 +1328,16 @@ private fun TopBarAndSweetMenuSection(
     onUpdate: (KittenWorkshopPreset) -> Unit,
 ) {
     val context = LocalContext.current
+    val topBarHeaderLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { copyWorkshopUriToFile(context, it, "topbar_header_bg") }?.let { path ->
+            onUpdate(preset.copy(customTopBarHeaderBgPath = path))
+        }
+    }
+    val popupBgLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { copyWorkshopUriToFile(context, it, "system_popup_bg") }?.let { path ->
+            onUpdate(preset.copy(customPopupBgPath = path))
+        }
+    }
     val bannerLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { copyWorkshopUriToFile(context, it, "topbar_banner") }?.let { path ->
             onUpdate(preset.copy(customTopBarBannerPath = path, topBarStyle = "lace_image"))
@@ -1210,7 +1359,7 @@ private fun TopBarAndSweetMenuSection(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                text = "✦ 聊天顶栏帘幕 & 吊坠挂饰",
+                text = "✦ 聊天顶栏（备注区背景）& 吊坠挂饰",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
                 color = palette.textPrimary,
             )
@@ -1226,7 +1375,7 @@ private fun TopBarAndSweetMenuSection(
                         color = palette.textPrimary,
                     )
                     Text(
-                        text = "关闭后仅保留干净的云朵波浪顶栏或自定义蕾丝横幅",
+                        text = "关闭后仅保留干净的云朵波浪顶栏，且不再弹出风铃提示",
                         style = MaterialTheme.typography.labelSmall,
                         color = palette.secondary,
                     )
@@ -1237,20 +1386,66 @@ private fun TopBarAndSweetMenuSection(
                 )
             }
 
+            OutlinedTextField(
+                value = preset.customTopBarHeaderBgPath,
+                onValueChange = { onUpdate(preset.copy(customTopBarHeaderBgPath = it)) },
+                label = { Text("顶栏备注区背景图（放老公名字的上方区域，支持图床 URL 或相册）") },
+                placeholder = { Text("https://... 或点击下方按钮从相册选图") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
-                    onClick = { bannerLauncher.launch("image/*") },
+                    onClick = { topBarHeaderLauncher.launch("image/*") },
                     modifier = Modifier.weight(1f),
                 ) {
                     Icon(HugeIcons.Image02, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("上传自定义顶栏装饰帘", style = MaterialTheme.typography.labelSmall)
+                    Text("从相册换顶栏备注区背景", style = MaterialTheme.typography.labelSmall)
                 }
-                if (preset.customTopBarBannerPath.isNotBlank()) {
-                    TextButton(
-                        onClick = { onUpdate(preset.copy(customTopBarBannerPath = "", topBarStyle = "cloud_charms")) }
-                    ) {
-                        Text("恢复默认云朵")
+                if (preset.customTopBarHeaderBgPath.isNotBlank()) {
+                    TextButton(onClick = { onUpdate(preset.copy(customTopBarHeaderBgPath = "")) }) {
+                        Text("恢复默认底色")
+                    }
+                }
+            }
+        }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(
+                text = "✦ 系统弹窗（下拉菜单 / 底部功能弹窗）背景图",
+                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
+                color = palette.textPrimary,
+            )
+            OutlinedTextField(
+                value = preset.customPopupBgPath,
+                onValueChange = { onUpdate(preset.copy(customPopupBgPath = it)) },
+                label = { Text("系统弹窗背景图（支持图床 URL 或本地相册）") },
+                placeholder = { Text("https://... 或点击下方按钮从相册选图") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = { popupBgLauncher.launch("image/*") },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(HugeIcons.Image02, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("从相册换系统弹窗背景图", style = MaterialTheme.typography.labelSmall)
+                }
+                if (preset.customPopupBgPath.isNotBlank()) {
+                    TextButton(onClick = { onUpdate(preset.copy(customPopupBgPath = "")) }) {
+                        Text("清除底图")
                     }
                 }
             }
@@ -1427,6 +1622,12 @@ private fun CssStudioSection(
     background-image: url('https://替换成你的信纸或磁带图床链接.png');
     background-color: #FFFDF9;
     border: 1.2px solid #E6C8B8;
+}""",
+            "顶栏备注区背景图" to """.topbar-header {
+    background-image: url('https://替换成你的顶栏背景图链接.png');
+}""",
+            "系统弹窗背景图" to """.system-popup {
+    background-image: url('https://替换成你的系统弹窗背景图链接.png');
 }""",
         )
     }

@@ -130,9 +130,13 @@ fun <T> ChainOfThought(
         }
     }
     val effectiveCardColors = CardDefaults.cardColors(
-        containerColor = (cssCotBg ?: thinkingBubbleColor ?: cardColors.containerColor).copy(
-            alpha = materialBaseAlpha * thinkingAlpha
-        ),
+        containerColor = if (cssCotBgUrl.isNotBlank()) {
+            (cssCotBg ?: Color.White).copy(alpha = 0.96f)
+        } else {
+            (cssCotBg ?: thinkingBubbleColor ?: cardColors.containerColor).copy(
+                alpha = materialBaseAlpha * thinkingAlpha
+            )
+        },
         contentColor = cardColors.contentColor,
         disabledContainerColor = cardColors.disabledContainerColor,
         disabledContentColor = cardColors.disabledContentColor,
@@ -203,7 +207,7 @@ fun <T> ChainOfThought(
                         model = modelData,
                         contentDescription = null,
                         contentScale = ContentScale.Crop,
-                        alpha = 0.35f,
+                        alpha = 1.0f,
                         modifier = Modifier.matchParentSize(),
                     )
                 }

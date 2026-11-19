@@ -26,6 +26,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import coil3.compose.AsyncImage
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.ui.layout.ContentScale
+import me.rerere.rikkahub.ui.context.LocalSettings
+import java.io.File
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.DisplayMaterialMode
 import me.rerere.rikkahub.ui.components.ui.toComposeColor
@@ -47,6 +52,38 @@ fun popupContainerColor(baseContainerColor: Color): Color {
     val popupAlpha =
         (LocalPopupSurfaceOpacity.current / 100f).coerceIn(0.6f, 1f)
     return baseContainerColor.copy(alpha = popupAlpha)
+}
+
+@Composable
+fun KittenPopupBgWrapper(
+    modifier: Modifier = Modifier,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val settings = LocalSettings.current
+    val rawPath = remember(settings.ourHomeSetting.customPopupBgPath, settings.ourHomeSetting.customCss) {
+        settings.ourHomeSetting.customPopupBgPath.ifBlank {
+            Regex("""\.system-popup\s*\{[^}]*background(?:-image)?\s*:\s*[^;]*?url\(\s*['"]?([^'")\s]+)['"]?\s*\)""", RegexOption.IGNORE_CASE)
+                .find(settings.ourHomeSetting.customCss)?.groupValues?.getOrNull(1).orEmpty()
+        }
+    }
+    Box(modifier = modifier) {
+        if (rawPath.isNotBlank()) {
+            val modelData: Any? = if (rawPath.startsWith("http://") || rawPath.startsWith("https://")) {
+                rawPath
+            } else {
+                File(rawPath).takeIf { it.exists() }
+            }
+            if (modelData != null) {
+                AsyncImage(
+                    model = modelData,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.matchParentSize(),
+                )
+            }
+        }
+        content()
+    }
 }
 
 private val AMOLED_DARK_BACKGROUND = Color(0xFF000000)
