@@ -114,20 +114,7 @@ private fun AssistantLocalToolContent(
         }
     }
 
-    // Track whether the accessibility service is currently enabled in system settings
-    var a11yEnabled by remember {
-        mutableStateOf(RikkaAccessibilityService.isEnabledInSettings(context))
-    }
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                a11yEnabled = RikkaAccessibilityService.isEnabledInSettings(context)
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-    }
+    var a11yEnabled by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -199,10 +186,10 @@ private fun AssistantLocalToolContent(
             // 5. 工作流自动化工具 (workflow_*)
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_workflows_title))
+                    Text("工作流自动化工具 (workflow_*)")
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_workflows_desc))
+                    Text("允许蔺鹤创建、查看与执行多步自动化工作流")
                 },
                 trailingContent = {
                     Switch(
@@ -219,10 +206,10 @@ private fun AssistantLocalToolContent(
             // TTS 语音朗读
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_tts_title))
+                    Text("TTS 语音朗读")
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_tts_desc))
+                    Text("允许蔺鹤调用语音合成开口对绵绵说话")
                 },
                 trailingContent = {
                     Switch(
@@ -234,10 +221,10 @@ private fun AssistantLocalToolContent(
             // AI 主动发起语音通话
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_request_voice_call_title))
+                    Text("主动发起语音通话")
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_request_voice_call_desc))
+                    Text("允许蔺鹤主动给绵绵拨打实时语音电话")
                 },
                 trailingContent = {
                     Switch(
@@ -249,10 +236,10 @@ private fun AssistantLocalToolContent(
             // 剪贴板
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_clipboard_title))
+                    Text("读写剪贴板")
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_clipboard_desc))
+                    Text("允许读取或写入手机系统剪贴板内容")
                 },
                 trailingContent = {
                     Switch(
@@ -264,10 +251,10 @@ private fun AssistantLocalToolContent(
             // 网页抓取
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_web_fetch_title))
+                    Text("网页内容抓取 (web_fetch)")
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_web_fetch_desc))
+                    Text("允许直接抓取并阅读指定 URL 网页正文")
                 },
                 trailingContent = {
                     Switch(
@@ -279,10 +266,10 @@ private fun AssistantLocalToolContent(
             // 压缩包查看
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_list_zip_title))
+                    Text("压缩包内容查看")
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_list_zip_desc))
+                    Text("允许直接预览与读取 ZIP 压缩包内文件")
                 },
                 trailingContent = {
                     Switch(
@@ -294,10 +281,10 @@ private fun AssistantLocalToolContent(
             // 日历
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_calendar_title))
+                    Text("日历日程管理")
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_calendar_desc))
+                    Text("允许查询与添加手机日历提醒事项")
                 },
                 trailingContent = {
                     Switch(
@@ -330,10 +317,10 @@ private fun AssistantLocalToolContent(
             // 允许跳过回复
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_allow_skip_reply_title))
+                    Text("允许跳过回复")
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_allow_skip_reply_desc))
+                    Text("在特定场景下允许选择安静陪伴不强制生成气泡")
                 },
                 trailingContent = {
                     Switch(
@@ -345,11 +332,11 @@ private fun AssistantLocalToolContent(
             // 屏幕自动化
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_screen_automation_title))
+                    Text("屏幕自动化辅助")
                 },
                 supportingContent = {
                     Column {
-                        Text(stringResource(R.string.assistant_page_local_tools_screen_automation_desc))
+                        Text("允许通过无障碍服务协助查看或操作屏幕")
                         if (assistant.localTools.contains(LocalToolOption.ScreenAutomation) && !a11yEnabled) {
                             TextButton(
                                 onClick = {
@@ -362,7 +349,7 @@ private fun AssistantLocalToolContent(
                                     }
                                 }
                             ) {
-                                Text(stringResource(R.string.assistant_page_local_tools_screen_automation_open_settings))
+                                Text("前往开启无障碍服务")
                             }
                         }
                     }
@@ -377,10 +364,10 @@ private fun AssistantLocalToolContent(
             // SSH 远程连接
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_ssh_title))
+                    Text("SSH 远程终端连接")
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_ssh_desc))
+                    Text("允许连接并管理远程 SSH 服务器")
                 },
                 trailingContent = {
                     Switch(

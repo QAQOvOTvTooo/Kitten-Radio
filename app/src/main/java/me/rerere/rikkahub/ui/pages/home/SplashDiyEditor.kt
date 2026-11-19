@@ -588,6 +588,10 @@ fun SplashDiyFullEditorModal(
             }
         }
 
+        val screenConfig = androidx.compose.ui.platform.LocalConfiguration.current
+        val canvasWidthPx = with(density) { screenConfig.screenWidthDp.dp.toPx().coerceAtLeast(1f) }
+        val canvasHeightPx = with(density) { screenConfig.screenHeightDp.dp.toPx().coerceAtLeast(1f) }
+
         // 顶部操作栏：支持一键收起成可自由拖动的小胶囊，彻底不挡顶部手帐区域
         if (isTopBarCollapsed) {
             Surface(

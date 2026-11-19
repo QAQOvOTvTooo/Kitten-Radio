@@ -139,8 +139,8 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     item(
                         onClick = { navController.navigate(Screen.SettingPlugins) },
                         leadingContent = { Icon(HugeIcons.Puzzle, null) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_plugins_title)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_plugins_desc)) },
+                        headlineContent = { Text("插件管理") },
+                        supportingContent = { Text("安装与管理 JS 插件、音乐播放器与扩展脚本") },
                     )
                 }
             }
@@ -169,36 +169,36 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     item(
                         onClick = { navController.navigate(Screen.SettingSearch) },
                         leadingContent = { Icon(HugeIcons.Earth, null) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_search_title)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_search_desc)) },
+                        headlineContent = { Text("搜索服务") },
+                        supportingContent = { Text("配置联网搜索引擎（Bing、Tavily、Exa、Bocha 等）") },
                     )
                     // 9. 语音服务
                     item(
                         onClick = { navController.navigate(Screen.SettingSpeech) },
                         leadingContent = { Icon(HugeIcons.VolumeHigh, null) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_tts_title)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_tts_desc)) },
+                        headlineContent = { Text("语音服务") },
+                        supportingContent = { Text("配置 MiniMax、OpenAI、Edge、系统 TTS 语音朗读与实时通话声音") },
                     )
                     // 10. MCP
                     item(
                         onClick = { navController.navigate(Screen.SettingMcp) },
                         leadingContent = { Icon(HugeIcons.McpServer, null) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_mcp_title)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
+                        headlineContent = { Text("MCP 服务") },
+                        supportingContent = { Text("管理 Model Context Protocol 远程工具服务") },
                     )
                     // 11. 系统工具（含闹钟与倒计时）
                     item(
                         onClick = { navController.navigate(Screen.SettingSystemTools) },
                         leadingContent = { Icon(HugeIcons.CustomerSupport, null) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_system_tools_title)) },
+                        headlineContent = { Text("系统工具") },
                         supportingContent = { Text("位置、通知、日历、闹钟与倒计时、短信、相机、音乐、音量、亮度与壁纸等设备系统工具") },
                     )
                     // 12. 工作流
                     item(
                         onClick = { navController.navigate(Screen.Workflows) },
                         leadingContent = { Icon(HugeIcons.GitBranch, null) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_workflows_title)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_workflows_desc)) },
+                        headlineContent = { Text("工作流") },
+                        supportingContent = { Text("配置自动化多步工作流与定时触发任务") },
                     )
                     // 13. 主动消息
                     item(

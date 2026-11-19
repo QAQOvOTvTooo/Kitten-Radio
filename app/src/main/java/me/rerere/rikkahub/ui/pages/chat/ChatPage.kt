@@ -1087,7 +1087,7 @@ private fun TopBar(
             ) {
                 Icon(
                     imageVector = HugeIcons.Call02,
-                    contentDescription = stringResource(R.string.voice_call_menu_entry),
+                    contentDescription = "语音通话",
                     tint = palette.textPrimary,
                 )
             }

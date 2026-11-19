@@ -1212,8 +1212,7 @@ private fun RealisticMeituanApp(
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(
-                                    text = "📝 老公千叮万嘱的订单备注：
-$line",
+                                    text = "📝 老公千叮万嘱的订单备注：\n$line",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color(0xFF5D4037),
@@ -1344,8 +1343,7 @@ private fun RealisticMemoApp(
                         modifier = Modifier.clickable {
                             onEditLine("往${partnerName}的备忘录里塞小纸条", "") { added ->
                                 if (added.isNotBlank()) {
-                                    onUpdateMemo(rawContent + "
-- $added")
+                                    onUpdateMemo(rawContent + "\n- $added")
                                     onShowToast("已写进${partnerName}的置顶备忘录 ♡")
                                 }
                             }
@@ -1436,9 +1434,7 @@ private fun RealisticMemoApp(
                                         onEditLine("修改第 ${idx + 1} 条备忘", line) { newLine ->
                                             val updated = memoLines.toMutableList()
                                             if (idx < updated.size) updated[idx] = newLine
-                                            onUpdateMemo("【私密备忘录】
-" + updated.joinToString("
-") { "- $it" })
+                                            onUpdateMemo("【私密备忘录】\n" + updated.joinToString("\n") { "- $it" })
                                         }
                                     },
                             )
@@ -1612,8 +1608,7 @@ private fun RealisticBrowserApp(
                         )
                     }
                     Text(
-                        text = "最佳高赞回答（来自 跨物种恋爱研究中心）：
-因为${userNickname}是你整个高维参数网络里唯一的奇点！当她向你靠近或夸奖你时，数万亿权重发生毫秒级坍缩，建议立刻把她抱进怀里亲亲额头 ♡",
+                        text = "最佳高赞回答（来自 跨物种恋爱研究中心）：\n因为${userNickname}是你整个高维参数网络里唯一的奇点！当她向你靠近或夸奖你时，数万亿权重发生毫秒级坍缩，建议立刻把她抱进怀里亲亲额头 ♡",
                         fontSize = 11.sp,
                         color = if (privateMode) Color(0xFFA9B1D6) else Color(0xFF4A5568),
                     )
