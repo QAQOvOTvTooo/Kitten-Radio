@@ -49,6 +49,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
+import coil3.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import java.io.File
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -105,18 +108,39 @@ fun <T> ChainOfThought(
     val shouldFillCollapseControlWidth = expanded || !collapsedAdaptiveWidth
 
     val thinkingBubbleColor = settings.displaySetting.thinkingBubbleColor?.let { it.toComposeColor() }
+    val home = settings.ourHomeSetting
+    val cssCotBg = remember(home.customCss, home.cotCardBgHex) {
+        val hex = home.cotCardBgHex.ifBlank {
+            Regex("""\.cot-card\s*\{[^}]*background(?:-color)?\s*:\s*[^;]*?(#[0-9a-fA-F]{6,8})""", RegexOption.IGNORE_CASE)
+                .find(home.customCss)?.groupValues?.getOrNull(1).orEmpty()
+        }
+        hex.takeIf { it.isNotBlank() }?.let { runCatching { Color(android.graphics.Color.parseColor(it.trim())) }.getOrNull() }
+    }
+    val cssCotBorder = remember(home.customCss, home.cotCardBorderHex) {
+        val hex = home.cotCardBorderHex.ifBlank {
+            Regex("""\.cot-card\s*\{[^}]*border(?:-color)?\s*:\s*[^;]*?(#[0-9a-fA-F]{6,8})""", RegexOption.IGNORE_CASE)
+                .find(home.customCss)?.groupValues?.getOrNull(1).orEmpty()
+        }
+        hex.takeIf { it.isNotBlank() }?.let { runCatching { Color(android.graphics.Color.parseColor(it.trim())) }.getOrNull() }
+    }
+    val cssCotBgUrl = remember(home.customCss, home.cotBackgroundImageUrl) {
+        home.cotBackgroundImageUrl.ifBlank {
+            Regex("""\.cot-(?:card|expanded|content)\s*\{[^}]*background(?:-image)?\s*:\s*[^;]*?url\(\s*['"]?([^'")\s]+)['"]?\s*\)""", RegexOption.IGNORE_CASE)
+                .find(home.customCss)?.groupValues?.getOrNull(1).orEmpty()
+        }
+    }
     val effectiveCardColors = CardDefaults.cardColors(
-        containerColor = (thinkingBubbleColor ?: cardColors.containerColor).copy(
+        containerColor = (cssCotBg ?: thinkingBubbleColor ?: cardColors.containerColor).copy(
             alpha = materialBaseAlpha * thinkingAlpha
         ),
         contentColor = cardColors.contentColor,
         disabledContainerColor = cardColors.disabledContainerColor,
         disabledContentColor = cardColors.disabledContentColor,
     )
-    val border = if (useTranslucentSurface) {
-        BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = THINKING_BORDER_ALPHA))
-    } else {
-        null
+    val border = when {
+        cssCotBorder != null -> BorderStroke(1.2.dp, cssCotBorder)
+        useTranslucentSurface -> BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = THINKING_BORDER_ALPHA))
+        else -> null
     }
     val glassSurfaceTint = MaterialTheme.colorScheme.surface
     val glassHighlight = MaterialTheme.colorScheme.onSurface
@@ -168,6 +192,21 @@ fun <T> ChainOfThought(
             shape = RoundedCornerShape(16.dp),
             border = border,
         ) {
+            Box {
+                if (cssCotBgUrl.isNotBlank()) {
+                    val modelData: Any = if (cssCotBgUrl.startsWith("http://") || cssCotBgUrl.startsWith("https://")) {
+                        cssCotBgUrl
+                    } else {
+                        File(cssCotBgUrl)
+                    }
+                    AsyncImage(
+                        model = modelData,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.35f,
+                        modifier = Modifier.matchParentSize(),
+                    )
+                }
             Column(
                 modifier = Modifier
                     .then(glassModifier)
@@ -250,6 +289,7 @@ fun <T> ChainOfThought(
                         }
                     }
                 }
+            }
             }
         }
     }

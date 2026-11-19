@@ -605,8 +605,22 @@ fun ChainOfThoughtScope.ChatMessageReasoningStep(
             )
         },
         label = {
+            val customCotHeader = settings.ourHomeSetting.cotHeaderTitle.trim()
             if (showThinkingTitle) {
                 ReasoningTitle(title = thinkingTitle!!)
+            } else if (customCotHeader.isNotBlank()) {
+                Text(
+                    text = "$customCotHeader (${
+                        String.format(
+                            java.util.Locale.US,
+                            "%.1fs",
+                            state.duration.toDouble(DurationUnit.SECONDS).toFloat()
+                        )
+                    })",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.shimmer(isLoading = loading),
+                )
             } else {
                 Text(
                     text = stringResource(

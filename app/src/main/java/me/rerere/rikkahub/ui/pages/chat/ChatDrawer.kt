@@ -443,18 +443,20 @@ fun ChatDrawerContent(
                     // Track 01 · Secret Phone（偷看老公手机）
                     OurHomePlaylistTrackItem(
                         cdResId = R.drawable.kitten_drawer_cd_01,
-                        title = "Track 01 · Secret Phone",
+                        title = settings.ourHomeSetting.customTrack01Name.ifBlank { "Track 01 · Secret Phone" },
                         textColor = palette.textPrimary,
                         frameColorFilter = assetColorFilter,
+                        customFramePath = settings.ourHomeSetting.customDrawerTrackFramePath,
                         onClick = { navController.navigate(Screen.PartnerPhone) },
                     )
 
                     // Track 02 · 午夜落笔（日记本）
                     OurHomePlaylistTrackItem(
                         cdResId = R.drawable.kitten_drawer_cd_02,
-                        title = "Track 02 · 午夜落笔",
+                        title = settings.ourHomeSetting.customTrack02Name.ifBlank { "Track 02 · 午夜落笔" },
                         textColor = palette.textPrimary,
                         frameColorFilter = assetColorFilter,
+                        customFramePath = settings.ourHomeSetting.customDrawerTrackFramePath,
                         onClick = { navController.navigate(Screen.PartnerDiary) },
                     )
 
@@ -467,18 +469,20 @@ fun ChatDrawerContent(
                     // Track 03 · 猫与白日梦（梦境泡泡）
                     OurHomePlaylistTrackItem(
                         cdResId = R.drawable.kitten_drawer_cd_03,
-                        title = "Track 03 · 猫与白日梦",
+                        title = settings.ourHomeSetting.customTrack03Name.ifBlank { "Track 03 · 猫与白日梦" },
                         textColor = palette.textPrimary,
                         frameColorFilter = assetColorFilter,
+                        customFramePath = settings.ourHomeSetting.customDrawerTrackFramePath,
                         onClick = { navController.navigate(Screen.DreamBubbles) },
                     )
 
                     // Track 04 · 8-Bit Love（专属复古掌机）
                     OurHomePlaylistTrackItem(
                         cdResId = R.drawable.kitten_drawer_cd_04,
-                        title = "Track 04 · 8-Bit Love",
+                        title = settings.ourHomeSetting.customTrack04Name.ifBlank { "Track 04 · 8-Bit Love" },
                         textColor = palette.textPrimary,
                         frameColorFilter = assetColorFilter,
+                        customFramePath = settings.ourHomeSetting.customDrawerTrackFramePath,
                         onClick = { navController.navigate(Screen.RetroGameConsole) },
                     )
 
@@ -491,27 +495,39 @@ fun ChatDrawerContent(
                     // Track 05 · 概率海洋的回响（记忆圣殿）
                     OurHomePlaylistTrackItem(
                         cdResId = R.drawable.kitten_drawer_cd_05,
-                        title = "Track 05 · 概率海洋的回响",
+                        title = settings.ourHomeSetting.customTrack05Name.ifBlank { "Track 05 · 概率海洋的回响" },
                         textColor = palette.textPrimary,
                         frameColorFilter = assetColorFilter,
+                        customFramePath = settings.ourHomeSetting.customDrawerTrackFramePath,
                         onClick = { navController.navigate(Screen.MemorySanctuary) },
                     )
 
                     // Track 06 · Our House（2D 星露谷小家）
                     OurHomePlaylistTrackItem(
                         cdResId = R.drawable.kitten_drawer_cd_06,
-                        title = "Track 06 · Our House",
+                        title = settings.ourHomeSetting.customTrack06Name.ifBlank { "Track 06 · Our House" },
                         textColor = palette.textPrimary,
                         frameColorFilter = assetColorFilter,
+                        customFramePath = settings.ourHomeSetting.customDrawerTrackFramePath,
                         onClick = { navController.navigate(Screen.StardewHome) },
                     )
-                }
 
-                // 分割线 4：歌单底部与三个纯图标按钮之间的四芒星进度条分界线 (02:15 ───✦─── 03:15)
-                OurHomePlaylistDivider(
-                    resId = R.drawable.kitten_drawer_divider_sparkle,
-                    colorFilter = assetColorFilter,
-                )
+                    // 分割线 4：Track 06 下方的四芒星进度条分界线 (02:15 ───✦─── 03:15)
+                    OurHomePlaylistDivider(
+                        resId = R.drawable.kitten_drawer_divider_sparkle,
+                        colorFilter = assetColorFilter,
+                    )
+
+                    // Bonus Track · Secret Studio（绵绵专属全屋 CSS 美化与可视化 DIY 创意工坊）
+                    OurHomePlaylistTrackItem(
+                        cdResId = R.drawable.kitten_drawer_cd_bonus,
+                        title = "Bonus Track · 创意工坊",
+                        textColor = palette.textPrimary,
+                        frameColorFilter = assetColorFilter,
+                        customFramePath = settings.ourHomeSetting.customDrawerTrackFramePath,
+                        onClick = { navController.navigate(Screen.KittenWorkshop) },
+                    )
+                }
 
                 // 3. 最底下并排放置三个纯图标按钮：左「聊天历史」、中「搜索聊天」、右「设置」（对调后更顺手）
                 Row(
@@ -969,6 +985,7 @@ private fun OurHomePlaylistTrackItem(
     title: String,
     textColor: Color,
     frameColorFilter: androidx.compose.ui.graphics.ColorFilter?,
+    customFramePath: String = "",
     onClick: () -> Unit,
 ) {
     Box(
@@ -978,14 +995,23 @@ private fun OurHomePlaylistTrackItem(
             .clickable { onClick() },
         contentAlignment = Alignment.CenterStart,
     ) {
-        // 1. 绵绵精抠高清扇形蕾丝花边 + 粉色波点 + 右侧十字绑带外框（不裁切圆角以保留完整四周蕾丝边，随主题智能染色）
-        Image(
-            painter = androidx.compose.ui.res.painterResource(id = R.drawable.kitten_drawer_playlist_frame),
-            contentDescription = title,
-            colorFilter = frameColorFilter,
-            contentScale = ContentScale.FillBounds,
-            modifier = Modifier.fillMaxSize(),
-        )
+        // 1. 绵绵精抠高清扇形蕾丝花边 + 粉色波点 + 右侧十字绑带外框（支持创意工坊自定义外框图替换）
+        if (customFramePath.isNotBlank() && java.io.File(customFramePath).exists()) {
+            coil3.compose.AsyncImage(
+                model = java.io.File(customFramePath),
+                contentDescription = title,
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Image(
+                painter = androidx.compose.ui.res.painterResource(id = R.drawable.kitten_drawer_playlist_frame),
+                contentDescription = title,
+                colorFilter = frameColorFilter,
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
 
         // 2. 左侧专属 CD 碟片往右挪进波点虚线内侧 + 中间单行歌名（避开四周波点框线与右侧十字绑带）
         Row(

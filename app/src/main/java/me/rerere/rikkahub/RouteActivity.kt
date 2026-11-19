@@ -190,6 +190,7 @@ import me.rerere.rikkahub.ui.pages.home.PartnerDiaryPage
 import me.rerere.rikkahub.ui.pages.home.PartnerPhonePage
 import me.rerere.rikkahub.ui.pages.home.RetroGameConsolePage
 import me.rerere.rikkahub.ui.pages.home.StardewHomePage
+import me.rerere.rikkahub.ui.pages.home.KittenWorkshopPage
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
@@ -893,6 +894,10 @@ class RouteActivity : ComponentActivity() {
                                 StardewHomePage()
                             }
 
+                            entry<Screen.KittenWorkshop> {
+                                KittenWorkshopPage()
+                            }
+
                             entry<Screen.MyProfileSetting> {
                                 MyProfileSettingPage()
                             }
@@ -1212,6 +1217,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object StardewHome : Screen
+
+    @Serializable
+    data object KittenWorkshop : Screen
 
     @Serializable
     data object MyProfileSetting : Screen

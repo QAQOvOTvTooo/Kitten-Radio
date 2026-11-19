@@ -319,15 +319,15 @@ private fun ChatListNormal(
             }
         }
 
-        // 将聊天列表视口的顶部裁剪线向上提入实心云朵根部（减去完整的 48.dp 云朵吊坠画布高度，彻底消除水平直线一刀切），
-        // 同时将 52.dp 补入 contentPadding.top，使聊天气泡上滑时自然穿过悬空小吊坠背后、贴着云朵波浪弧线被云朵真实遮挡
-        val solidCloudClipTop = (innerPadding.calculateTopPadding() - 48.dp).coerceAtLeast(0.dp)
+        // 将聊天列表视口的顶部裁剪线向上提入实心云朵根部（减去完整的 86.dp 云朵吊坠画布高度，彻底消除水平直线一刀切），
+        // 同时将 90.dp 补入 contentPadding.top，使聊天气泡上滑时自然穿过悬空小吊坠背后、贴着云朵波浪弧线被云朵真实遮挡
+        val solidCloudClipTop = (innerPadding.calculateTopPadding() - 86.dp).coerceAtLeast(0.dp)
         LazyColumn(
             state = state,
             contentPadding = PaddingValues(
                 start = 16.dp,
                 end = 16.dp,
-                top = 52.dp,
+                top = 90.dp,
                 bottom = 32.dp + innerPadding.calculateBottomPadding(),
             ),
             horizontalAlignment = Alignment.CenterHorizontally,

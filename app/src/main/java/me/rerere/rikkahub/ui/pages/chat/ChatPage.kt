@@ -1172,8 +1172,12 @@ private fun TopBar(
                 drawPath(p, color = color)
             }
 
-            // 1. 先绘制悬挂在幕布下的 6 根错落珠链与精致吊饰（挂绳顶端自然藏在云朵帘幕背后）
-            val charmXs = listOf(0.080f, 0.245f, 0.415f, 0.585f, 0.755f, 0.920f)
+            // 1. 先绘制悬挂在幕布下的 6 根错落珠链与精致吊饰（挂绳顶端自然藏在云朵帘幕背后，支持创意工坊开关）
+            val charmXs = if (settings.ourHomeSetting.showTopBarCharms) {
+                listOf(0.080f, 0.245f, 0.415f, 0.585f, 0.755f, 0.920f)
+            } else {
+                emptyList()
+            }
             val charmLensDp = listOf(21.5f, 47.0f, 17.5f, 36.0f, 25.5f, 38.5f) // 方案B 135% 错落比例（6号雪花挂链加长至与2号蝴蝶结高低相近且微微错落）
 
             charmXs.forEachIndexed { idx, frac ->
