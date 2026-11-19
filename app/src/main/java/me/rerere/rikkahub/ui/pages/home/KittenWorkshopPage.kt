@@ -445,8 +445,7 @@ fun KittenWorkshopPage() {
                 .fillMaxSize()
                 .kittenGridBackground(
                     backgroundColor = palette.background,
-                    gridColor = palette.gridLineColor,
-                    enableGrid = workingPreset.enableGridBackground,
+                    gridColor = if (workingPreset.enableGridBackground) palette.gridLineColor else Color.Transparent,
                 )
                 .padding(innerPadding)
                 .padding(horizontal = 14.dp),
