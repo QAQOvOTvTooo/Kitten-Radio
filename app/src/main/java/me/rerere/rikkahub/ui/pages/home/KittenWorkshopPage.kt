@@ -80,7 +80,7 @@ import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.theme.KittenPalettes
+import me.rerere.rikkahub.ui.theme.KittenPaletteSpecs
 import me.rerere.rikkahub.ui.theme.findKittenPalette
 import me.rerere.rikkahub.ui.theme.kittenGridBackground
 import me.rerere.rikkahub.utils.JsonInstant
@@ -351,28 +351,28 @@ fun KittenWorkshopPage() {
         val cssParsed = parseCssPreviewStyle(preset.customCss)
         val resolvedCorner = cssParsed.cornerRadiusDp ?: preset.bubbleCornerRadiusDp
 
-        fun hexToIntOrNull(hex: String): Int? {
+        fun hexToLongOrNull(hex: String): Long? {
             if (hex.isBlank()) return null
-            return runCatching { android.graphics.Color.parseColor(hex.trim()) }.getOrNull()
+            return runCatching { android.graphics.Color.parseColor(hex.trim()).toLong() and 0xFFFFFFFFL }.getOrNull()
         }
 
-        val userColorInt = hexToIntOrNull(preset.userBubbleBgHex)
+        val userColorLong = hexToLongOrNull(preset.userBubbleBgHex)
             ?: cssParsed.userBgColor?.let {
                 android.graphics.Color.argb(
                     (it.alpha * 255).roundToInt(),
                     (it.red * 255).roundToInt(),
                     (it.green * 255).roundToInt(),
                     (it.blue * 255).roundToInt()
-                )
+                ).toLong() and 0xFFFFFFFFL
             }
-        val botColorInt = hexToIntOrNull(preset.assistantBubbleBgHex)
+        val botColorLong = hexToLongOrNull(preset.assistantBubbleBgHex)
             ?: cssParsed.assistantBgColor?.let {
                 android.graphics.Color.argb(
                     (it.alpha * 255).roundToInt(),
                     (it.red * 255).roundToInt(),
                     (it.green * 255).roundToInt(),
                     (it.blue * 255).roundToInt()
-                )
+                ).toLong() and 0xFFFFFFFFL
             }
 
         scope.launch {
@@ -402,9 +402,9 @@ fun KittenWorkshopPage() {
                         customTrack06Name = preset.customTrack06Name,
                     ),
                     displaySetting = settings.displaySetting.copy(
-                        bubbleCornerRadius = resolvedCorner,
-                        userBubbleColor = userColorInt,
-                        assistantBubbleColor = botColorInt,
+                        bubbleCornerRadius = resolvedCorner.toFloat(),
+                        userBubbleColor = userColorLong,
+                        assistantBubbleColor = botColorLong,
                         userBubbleImagePath = preset.userBubbleImagePath,
                         assistantBubbleImagePath = preset.assistantBubbleImagePath,
                     )
@@ -444,8 +444,9 @@ fun KittenWorkshopPage() {
             modifier = Modifier
                 .fillMaxSize()
                 .kittenGridBackground(
-                    enabled = workingPreset.enableGridBackground,
+                    backgroundColor = palette.background,
                     gridColor = palette.gridLineColor,
+                    enableGrid = workingPreset.enableGridBackground,
                 )
                 .padding(innerPadding)
                 .padding(horizontal = 14.dp),
@@ -667,7 +668,7 @@ fun KittenWorkshopPage() {
 @Composable
 private fun WorkshopLivePreviewStage(
     preset: KittenWorkshopPreset,
-    palette: me.rerere.rikkahub.ui.theme.KittenPalette,
+    palette: me.rerere.rikkahub.ui.theme.KittenPaletteSpec,
     onSaveAsNew: () -> Unit,
     onApplyNow: () -> Unit,
 ) {
@@ -839,7 +840,7 @@ private fun PresetsBookshelfSection(
     allPresets: List<KittenWorkshopPreset>,
     activePresetId: String,
     workingPreset: KittenWorkshopPreset,
-    palette: me.rerere.rikkahub.ui.theme.KittenPalette,
+    palette: me.rerere.rikkahub.ui.theme.KittenPaletteSpec,
     onSelectPreset: (KittenWorkshopPreset) -> Unit,
     onCreateNew: () -> Unit,
     onDeleteCustom: (KittenWorkshopPreset) -> Unit,
@@ -1014,7 +1015,7 @@ private fun PresetsBookshelfSection(
                                     .background(p.primary)
                             )
                             Text(
-                                text = p.name,
+                                text = p.title,
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                                 color = p.textPrimary,
                             )
@@ -1029,7 +1030,7 @@ private fun PresetsBookshelfSection(
 @Composable
 private fun BubbleAndCotSection(
     preset: KittenWorkshopPreset,
-    palette: me.rerere.rikkahub.ui.theme.KittenPalette,
+    palette: me.rerere.rikkahub.ui.theme.KittenPaletteSpec,
     onUpdate: (KittenWorkshopPreset) -> Unit,
 ) {
     val context = LocalContext.current
@@ -1184,7 +1185,7 @@ private fun BubbleAndCotSection(
 @Composable
 private fun TopBarAndSweetMenuSection(
     preset: KittenWorkshopPreset,
-    palette: me.rerere.rikkahub.ui.theme.KittenPalette,
+    palette: me.rerere.rikkahub.ui.theme.KittenPaletteSpec,
     onUpdate: (KittenWorkshopPreset) -> Unit,
 ) {
     val context = LocalContext.current
@@ -1292,7 +1293,7 @@ private fun TopBarAndSweetMenuSection(
 @Composable
 private fun DrawerAndTracksSection(
     preset: KittenWorkshopPreset,
-    palette: me.rerere.rikkahub.ui.theme.KittenPalette,
+    palette: me.rerere.rikkahub.ui.theme.KittenPaletteSpec,
     onUpdate: (KittenWorkshopPreset) -> Unit,
 ) {
     val context = LocalContext.current
@@ -1401,7 +1402,7 @@ private fun DrawerAndTracksSection(
 @Composable
 private fun CssStudioSection(
     preset: KittenWorkshopPreset,
-    palette: me.rerere.rikkahub.ui.theme.KittenPalette,
+    palette: me.rerere.rikkahub.ui.theme.KittenPaletteSpec,
     onUpdate: (KittenWorkshopPreset) -> Unit,
     onApplyNow: () -> Unit,
 ) {
