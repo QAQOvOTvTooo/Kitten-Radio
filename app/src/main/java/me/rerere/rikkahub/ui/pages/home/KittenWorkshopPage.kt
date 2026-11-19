@@ -80,7 +80,8 @@ import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.context.LocalToaster
-import me.rerere.rikkahub.ui.theme.KittenPaletteSpecs
+import me.rerere.rikkahub.ui.theme.KittenPalettes
+import me.rerere.rikkahub.ui.theme.KittenPaletteSpec
 import me.rerere.rikkahub.ui.theme.findKittenPalette
 import me.rerere.rikkahub.ui.theme.kittenGridBackground
 import me.rerere.rikkahub.utils.JsonInstant
