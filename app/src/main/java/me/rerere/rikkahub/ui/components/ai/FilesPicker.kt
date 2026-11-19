@@ -1,35 +1,41 @@
 /*
- * 橘瓣 OrangeChat
- * 衍生自 RikkaHub (https://github.com/rikkahub/rikkahub)，原作者 RE
- * 本项目基于 GNU AGPL v3 开源，详见根目录 LICENSE 文件
+ * 小猫电台 · 绵绵与蔺鹤的专属小家
+ * 输入框「+」号专属下午茶甜品菜单 (Menu · SWEET MOMENTS)
  */
 
 package me.rerere.rikkahub.ui.components.ai
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -48,42 +54,33 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import kotlin.uuid.Uuid
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastFilter
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import me.rerere.ai.core.ReasoningLevel
-import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
-import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
-import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.AiSearch02
-import me.rerere.hugeicons.stroke.ArrowRight01
-import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Camera01
-import me.rerere.hugeicons.stroke.Codesandbox
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Files02
 import me.rerere.hugeicons.stroke.Folder01
-import me.rerere.hugeicons.stroke.Idea
-import me.rerere.hugeicons.stroke.Idea01
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.MusicNote03
-import me.rerere.hugeicons.stroke.Package
-import me.rerere.hugeicons.stroke.Package01
-import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings02
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.R
@@ -96,25 +93,25 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.lastContextTokens
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
-import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.ExtensionSelector
-import me.rerere.rikkahub.ui.components.ui.icons.ReasoningHigh
-import me.rerere.rikkahub.ui.components.ui.icons.ReasoningLow
-import me.rerere.rikkahub.ui.components.ui.icons.ReasoningMedium
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionCamera
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalCurrentChatModel
-import me.rerere.rikkahub.ui.context.LocalMcpServers
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalProviders
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.rikkahub.ui.theme.findKittenPalette
 import me.rerere.rikkahub.ui.theme.popupContainerColor
+import me.rerere.rikkahub.ui.theme.rememberKittenAssetColorFilter
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.workspace.WorkspaceShellStatus
 import org.koin.compose.koinInject
+import kotlin.uuid.Uuid
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 internal fun FilesPicker(
     conversation: Conversation,
@@ -139,329 +136,199 @@ internal fun FilesPicker(
     onPickAudio: () -> Unit,
     onPickFile: () -> Unit,
 ) {
-    // settings 仍保留给 InjectionQuickConfigSheet -> ExtensionSelector 使用（它需要完整 Settings）
     val settings = LocalSettings.current
     val currentChatModel = LocalCurrentChatModel.current
     val providers = LocalProviders.current
-    val mcpServers = LocalMcpServers.current
     val provider = currentChatModel?.findProvider(providers = providers)
     val navController = LocalNavController.current
+    val toaster = LocalToaster.current
     val workspaceRepository: WorkspaceRepository = koinInject()
     val workspaces by workspaceRepository.listFlow().collectAsState(initial = emptyList())
 
     val boundWorkspace = remember(workspaces, assistant.workspaceId) {
         workspaces.find { it.id == assistant.workspaceId?.toString() }
     }
-    val showCwd = boundWorkspace != null && boundWorkspace.shellStatus == WorkspaceShellStatus.READY.name
     var showCwdSheet by remember { mutableStateOf(false) }
     var showModelSheet by remember { mutableStateOf(false) }
     var showSearchSheet by remember { mutableStateOf(false) }
     var showReasoningSheet by remember { mutableStateOf(false) }
+    var showWorkspaceBakerySheet by remember { mutableStateOf(false) }
 
-    Column(
+    val palette = findKittenPalette(settings.ourHomeSetting.kittenPaletteId)
+    val assetColorFilter = rememberKittenAssetColorFilter(
+        paletteId = settings.ourHomeSetting.kittenPaletteId,
+        enabled = settings.ourHomeSetting.enableAssetTint,
+    )
+
+    val reasoningLabel = when (assistant.reasoningLevel) {
+        ReasoningLevel.OFF -> stringResource(R.string.reasoning_off)
+        ReasoningLevel.AUTO -> stringResource(R.string.reasoning_auto)
+        ReasoningLevel.LOW -> stringResource(R.string.reasoning_light)
+        ReasoningLevel.MEDIUM -> stringResource(R.string.reasoning_medium)
+        ReasoningLevel.HIGH -> stringResource(R.string.reasoning_heavy)
+        ReasoningLevel.XHIGH -> stringResource(R.string.reasoning_xhigh)
+    }
+    val enabledExtensionsCount = assistant.quickMessageIds.size +
+        assistant.modeInjectionIds.size +
+        assistant.lorebookIds.size +
+        assistant.enabledSkills.size
+
+    val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
+    val maxMenuHeight = (screenHeightDp * 0.62f).coerceIn(360.dp, 540.dp)
+
+    // 绵绵亲自设计的下午茶甜品菜单卡 (Menu · SWEET MOMENTS · 1024x1536)
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+        BoxWithConstraints(
+            modifier = Modifier
+                .heightIn(max = maxMenuHeight)
+                .aspectRatio(1024f / 1536f)
+                .clip(RoundedCornerShape(22.dp))
         ) {
-            TakePicButton(onLaunchCamera = onTakePic)
+            val mw = maxWidth
+            val mh = maxHeight
 
-            ImagePickButton(onClick = onPickImage)
+            Image(
+                painter = painterResource(id = R.drawable.kitten_chat_sweet_menu),
+                contentDescription = "Sweet Moments Menu",
+                colorFilter = assetColorFilter,
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier.fillMaxSize(),
+            )
 
-            FilePickButton(onClick = onPickFile)
-        }
-
-        HorizontalDivider(
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        // 1. 切换聊天模型
-        ListItem(
-            leadingContent = {
-                if (currentChatModel != null) {
-                    AutoAIIcon(
-                        name = currentChatModel.modelId,
-                        modifier = Modifier.size(24.dp),
-                        color = Color.Transparent,
-                    )
-                } else {
-                    Icon(
-                        imageVector = HugeIcons.Brain02,
-                        contentDescription = stringResource(R.string.setting_model_page_chat_model),
-                    )
-                }
-            },
-            headlineContent = {
-                Text(stringResource(R.string.setting_model_page_chat_model))
-            },
-            supportingContent = {
-                Text(
-                    text = buildString {
-                        append(currentChatModel?.displayName ?: stringResource(R.string.model_list_select_model))
-                        if (provider != null) {
-                            append(" · ")
-                            append(provider.name)
-                        }
-                    },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            trailingContent = {
-                Icon(
-                    imageVector = HugeIcons.ArrowRight01,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            },
-            modifier = Modifier
-                .clip(MaterialTheme.shapes.large)
-                .clickable { showModelSheet = true },
-        )
-
-        // 2. 推理（思考深度调节：Off / Auto / Low / Medium / High / XHigh）
-        val reasoningLabel = when (assistant.reasoningLevel) {
-            ReasoningLevel.OFF -> stringResource(R.string.reasoning_off)
-            ReasoningLevel.AUTO -> stringResource(R.string.reasoning_auto)
-            ReasoningLevel.LOW -> stringResource(R.string.reasoning_light)
-            ReasoningLevel.MEDIUM -> stringResource(R.string.reasoning_medium)
-            ReasoningLevel.HIGH -> stringResource(R.string.reasoning_heavy)
-            ReasoningLevel.XHIGH -> stringResource(R.string.reasoning_xhigh)
-        }
-        val reasoningDesc = when (assistant.reasoningLevel) {
-            ReasoningLevel.OFF -> stringResource(R.string.reasoning_off_desc)
-            ReasoningLevel.AUTO -> stringResource(R.string.reasoning_auto_desc)
-            ReasoningLevel.LOW -> stringResource(R.string.reasoning_light_desc)
-            ReasoningLevel.MEDIUM -> stringResource(R.string.reasoning_medium_desc)
-            ReasoningLevel.HIGH, ReasoningLevel.XHIGH -> stringResource(R.string.reasoning_heavy_desc)
-        }
-        ListItem(
-            leadingContent = {
-                when (assistant.reasoningLevel) {
-                    ReasoningLevel.OFF -> Icon(HugeIcons.Idea, contentDescription = null)
-                    ReasoningLevel.AUTO -> Icon(HugeIcons.Idea01, contentDescription = null)
-                    ReasoningLevel.LOW -> Icon(ReasoningLow, contentDescription = null)
-                    ReasoningLevel.MEDIUM -> Icon(ReasoningMedium, contentDescription = null)
-                    ReasoningLevel.HIGH, ReasoningLevel.XHIGH -> Icon(ReasoningHigh, contentDescription = null)
-                }
-            },
-            headlineContent = {
-                Text(stringResource(R.string.reasoning_picker_title))
-            },
-            supportingContent = {
-                Text(
-                    text = "$reasoningLabel · $reasoningDesc",
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            trailingContent = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+            // 通用透明菜名热区 + 虚线上方精致当前状态小副标
+            @Composable
+            fun MenuHotspot(
+                xFrac: Float,
+                yFrac: Float,
+                wFrac: Float,
+                hFrac: Float,
+                badgeText: String = "",
+                onClick: () -> Unit,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .offset(x = mw * xFrac, y = mh * yFrac)
+                        .size(width = mw * wFrac, height = mh * hFrac)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onClick() },
                 ) {
-                    Text(
-                        text = reasoningLabel,
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Icon(
-                        imageVector = HugeIcons.ArrowRight01,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            },
-            modifier = Modifier
-                .clip(MaterialTheme.shapes.large)
-                .clickable { showReasoningSheet = true },
-        )
-
-        // 3. 扩展管理（快捷消息 / 模式注入 / 世界书 Lorebook / Agent Skills）
-        val enabledExtensionsCount = assistant.quickMessageIds.size +
-            assistant.modeInjectionIds.size +
-            assistant.lorebookIds.size +
-            assistant.enabledSkills.size
-        ListItem(
-            leadingContent = {
-                Icon(
-                    imageVector = HugeIcons.Package,
-                    contentDescription = stringResource(R.string.extensions_page_section_extensions),
-                )
-            },
-            headlineContent = {
-                Text(stringResource(R.string.extensions_page_section_extensions))
-            },
-            supportingContent = {
-                Text(
-                    text = stringResource(R.string.assistant_detail_extensions_desc),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            trailingContent = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    if (enabledExtensionsCount > 0) {
+                    if (badgeText.isNotBlank()) {
                         Text(
-                            text = "已启用 $enabledExtensionsCount 项",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.primary,
+                            text = badgeText,
+                            fontSize = 8.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = palette.primary.copy(alpha = 0.85f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = mw * 0.03f, bottom = mh * 0.004f),
                         )
                     }
-                    Icon(
-                        imageVector = HugeIcons.ArrowRight01,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
-            },
-            modifier = Modifier
-                .clip(MaterialTheme.shapes.large)
-                .clickable { onShowInjectionSheetChange(true) },
-        )
+            }
 
-        // 4. 联网搜索开关与搜索服务选择
-        ListItem(
-            leadingContent = {
-                Icon(
-                    imageVector = HugeIcons.AiSearch02,
-                    contentDescription = stringResource(R.string.search_picker_title),
-                )
-            },
-            headlineContent = {
-                Text(stringResource(R.string.search_picker_title))
-            },
-            supportingContent = {
-                Text(
-                    text = if (enableSearch) stringResource(R.string.web_search_enabled) else stringResource(R.string.web_search_disabled),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
-            trailingContent = {
-                Switch(
-                    checked = enableSearch,
-                    onCheckedChange = { onToggleSearch(it) },
-                )
-            },
-            modifier = Modifier
-                .clip(MaterialTheme.shapes.large)
-                .clickable { showSearchSheet = true },
-        )
+            // ================= 左上 Coffee 区域 =================
+            // 1. Chef's Model Blend（模型）
+            MenuHotspot(
+                xFrac = 0.08f,
+                yFrac = 0.355f,
+                wFrac = 0.40f,
+                hFrac = 0.072f,
+                badgeText = currentChatModel?.displayName.orEmpty(),
+                onClick = { showModelSheet = true },
+            )
+            // 2. Deep-Brew Reasoning（推理）
+            MenuHotspot(
+                xFrac = 0.08f,
+                yFrac = 0.440f,
+                wFrac = 0.40f,
+                hFrac = 0.072f,
+                badgeText = reasoningLabel,
+                onClick = { showReasoningSheet = true },
+            )
 
-        // 5. 工作区管理与工作目录快捷入口
-        WorkspacePickerListItem(
-            assistant = assistant,
-            workspaces = workspaces,
-            onUpdateAssistant = { updated ->
-                if (updated.workspaceId != assistant.workspaceId) {
-                    onUpdateWorkspaceCwd(null)
-                }
-                onUpdateAssistant(updated)
-            },
-            onNavigateToDetail = { id ->
-                onDismiss()
-                navController.navigate(Screen.WorkspaceDetail(id, initialTab = 1))
-            },
-            onNavigateToTerminal = { id ->
-                onDismiss()
-                navController.navigate(Screen.WorkspaceTerminal(id))
-            },
-            onNavigateToManage = {
-                onDismiss()
-                navController.navigate(Screen.Workspaces)
-            },
-        )
+            // ================= 右上 Tea 区域 =================
+            // 3. Web-Hunt Berry Tea（搜索）
+            MenuHotspot(
+                xFrac = 0.52f,
+                yFrac = 0.355f,
+                wFrac = 0.39f,
+                hFrac = 0.072f,
+                badgeText = if (enableSearch) "ON" else "OFF",
+                onClick = { showSearchSheet = true },
+            )
+            // 4. History Syrup（压缩历史）
+            MenuHotspot(
+                xFrac = 0.52f,
+                yFrac = 0.440f,
+                wFrac = 0.39f,
+                hFrac = 0.072f,
+                badgeText = if (conversation.messageNodes.isNotEmpty()) "${conversation.messageNodes.size}条" else "",
+                onClick = { onShowCompressDialogChange(true) },
+            )
 
-        if (showCwd) {
-            ListItem(
-                leadingContent = {
-                    Icon(
-                        imageVector = HugeIcons.Folder01,
-                        contentDescription = stringResource(R.string.workspace_cwd_select_directory),
-                    )
+            // ================= 左下 Desserts 区域 =================
+            // 5. Mille-Feuille Extensions（扩展）
+            MenuHotspot(
+                xFrac = 0.14f,
+                yFrac = 0.625f,
+                wFrac = 0.35f,
+                hFrac = 0.058f,
+                badgeText = if (enabledExtensionsCount > 0) "${enabledExtensionsCount}项" else "",
+                onClick = { onShowInjectionSheetChange(true) },
+            )
+            // 6. Sandbox Bakery（工作区：弹出包含切换工作区、设置齿轮、打开终端的专属菜单）
+            MenuHotspot(
+                xFrac = 0.14f,
+                yFrac = 0.690f,
+                wFrac = 0.35f,
+                hFrac = 0.058f,
+                badgeText = boundWorkspace?.name.orEmpty(),
+                onClick = { showWorkspaceBakerySheet = true },
+            )
+            // 7. Home Pantry（/workspace 文件夹）
+            MenuHotspot(
+                xFrac = 0.14f,
+                yFrac = 0.752f,
+                wFrac = 0.35f,
+                hFrac = 0.058f,
+                badgeText = conversation.workspaceCwd ?: "/workspace",
+                onClick = {
+                    if (boundWorkspace != null) {
+                        showCwdSheet = true
+                    } else {
+                        showWorkspaceBakerySheet = true
+                    }
                 },
-                headlineContent = {
-                    Text(
-                        text = conversation.workspaceCwd ?: boundWorkspace?.workspaceDir().orEmpty(),
-                        maxLines = 1,
-                        overflow = TextOverflow.StartEllipsis,
-                    )
-                },
-                trailingContent = {
-                    Icon(HugeIcons.ArrowRight01, contentDescription = null)
-                },
-                modifier = Modifier
-                    .clip(MaterialTheme.shapes.large)
-                    .clickable { showCwdSheet = true },
+            )
+
+            // ================= 右下 Refreshers 区域 =================
+            // 8. Photo Parfait（图片）
+            MenuHotspot(
+                xFrac = 0.52f,
+                yFrac = 0.625f,
+                wFrac = 0.35f,
+                hFrac = 0.058f,
+                onClick = { onPickImage() },
+            )
+            // 9. File Mille-Crêpe（上传文件）
+            MenuHotspot(
+                xFrac = 0.52f,
+                yFrac = 0.690f,
+                wFrac = 0.35f,
+                hFrac = 0.058f,
+                onClick = { onPickFile() },
             )
         }
-
-        // 3. 压缩上下文（压缩后在压缩位置插入摘要，上方原文不发送；支持编辑和删除摘要，删除后无损恢复发送原文）
-        ListItem(
-            leadingContent = {
-                Icon(
-                    imageVector = HugeIcons.Package01,
-                    contentDescription = stringResource(R.string.chat_page_compress_context),
-                )
-            },
-            headlineContent = {
-                Text(stringResource(R.string.chat_page_compress_context))
-            },
-            supportingContent = {
-                Text(
-                    text = "插入可编辑摘要截断上文，删除摘要即恢复原文",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            },
-            trailingContent = {
-                val contextTokens = remember(conversation.messageNodes) {
-                    conversation.lastContextTokens()
-                }
-                val contextLength = currentChatModel?.contextLength?.takeIf { it > 0 }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Column(horizontalAlignment = Alignment.End) {
-                        if (conversation.messageNodes.isNotEmpty()) {
-                            Text(
-                                text = stringResource(R.string.chat_page_message_count, conversation.messageNodes.size),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        if (contextTokens != null && contextLength != null) {
-                            Text(
-                                text = "${contextTokens.formatNumber()} / ${contextLength.formatNumber()}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    if (contextTokens != null && contextLength != null) {
-                        ContextUsageRing(fraction = contextTokens.toFloat() / contextLength)
-                    }
-                }
-            },
-            modifier = Modifier
-                .clip(MaterialTheme.shapes.large)
-                .clickable {
-                    onShowCompressDialogChange(true)
-                },
-        )
     }
 
+    // 7. Home Pantry (/workspace 文件夹选择弹窗)
     if (showCwdSheet && boundWorkspace != null) {
         WorkspaceCwdPickerSheet(
             workspaceId = boundWorkspace.id,
@@ -474,26 +341,30 @@ internal fun FilesPicker(
         )
     }
 
-    // Injection Bottom Sheet
+    // 5. Mille-Feuille Extensions (扩展管理弹窗)
     if (showInjectionSheet) {
         InjectionQuickConfigSheet(
             assistant = assistant,
             settings = settings,
             onUpdateAssistant = onUpdateAssistant,
-            onDismiss = { onShowInjectionSheetChange(false) })
+            onDismiss = { onShowInjectionSheetChange(false) },
+        )
     }
 
-    // Compress Context Dialog
+    // 4. History Syrup (压缩历史弹窗，顶部附带当前上下文 Token 用量环)
     if (showCompressDialog) {
-        CompressContextDialog(onDismiss = {
-            onShowCompressDialogChange(false)
-            onDismiss()
-        }, onConfirm = { additionalPrompt, targetTokens, keepRecentMessages ->
-            onCompressContext(additionalPrompt, targetTokens, keepRecentMessages)
-        })
+        CompressContextDialog(
+            onDismiss = {
+                onShowCompressDialogChange(false)
+                onDismiss()
+            },
+            onConfirm = { additionalPrompt, targetTokens, keepRecentMessages ->
+                onCompressContext(additionalPrompt, targetTokens, keepRecentMessages)
+            }
+        )
     }
 
-    // Model Selection Bottom Sheet
+    // 1. Chef's Model Blend (模型选择弹窗)
     if (showModelSheet) {
         val modelSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val scope = rememberCoroutineScope()
@@ -534,7 +405,7 @@ internal fun FilesPicker(
         }
     }
 
-    // Search Settings Bottom Sheet
+    // 3. Web-Hunt Berry Tea (搜索开关 + 搜索服务选择弹窗)
     if (showSearchSheet) {
         ModalBottomSheet(
             onDismissRequest = { showSearchSheet = false },
@@ -544,17 +415,46 @@ internal fun FilesPicker(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.7f)
+                    .fillMaxHeight(0.75f)
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = stringResource(R.string.search_picker_title),
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    )
+                    text = "🍓 Web-Hunt Berry Tea · 搜索设置",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 )
+
+                // 将原本在外层的网页搜索总开关收进点击菜名后的弹窗顶部
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.search_picker_title),
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                            )
+                            Text(
+                                text = if (enableSearch) stringResource(R.string.web_search_enabled) else stringResource(R.string.web_search_disabled),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = enableSearch,
+                            onCheckedChange = { onToggleSearch(it) },
+                        )
+                    }
+                }
 
                 SearchPicker(
                     enableSearch = enableSearch,
@@ -573,7 +473,7 @@ internal fun FilesPicker(
         }
     }
 
-    // Reasoning Picker Bottom Sheet
+    // 2. Deep-Brew Reasoning (思考深度调节弹窗)
     if (showReasoningSheet) {
         ReasoningPicker(
             reasoningLevel = assistant.reasoningLevel,
@@ -583,92 +483,125 @@ internal fun FilesPicker(
             }
         )
     }
-}
 
-@Composable
-private fun WorkspacePickerListItem(
-    assistant: Assistant,
-    workspaces: List<WorkspaceEntity>,
-    onUpdateAssistant: (Assistant) -> Unit,
-    onNavigateToDetail: (String) -> Unit,
-    onNavigateToTerminal: (String) -> Unit,
-    onNavigateToManage: () -> Unit,
-) {
-    var showSheet by remember { mutableStateOf(false) }
-    val boundWorkspace = remember(workspaces, assistant.workspaceId) {
-        workspaces.find { it.id == assistant.workspaceId?.toString() }
-    }
-
-    ListItem(
-        leadingContent = {
-            Icon(
-                imageVector = HugeIcons.Codesandbox,
-                contentDescription = null,
-            )
-        },
-        headlineContent = {
-            Text(stringResource(R.string.assistant_page_workspace))
-        },
-        supportingContent = {
-            Text(
-                text = boundWorkspace?.name ?: stringResource(R.string.assistant_page_workspace_unbound),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        },
-        trailingContent = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
+    // 6. Sandbox Bakery (工作区切换 + 工作区设置齿轮 + 打开终端弹窗)
+    if (showWorkspaceBakerySheet) {
+        var showSelectSubSheet by remember { mutableStateOf(false) }
+        ModalBottomSheet(
+            onDismissRequest = { showWorkspaceBakerySheet = false },
+            containerColor = popupContainerColor(BottomSheetDefaults.ContainerColor),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                if (boundWorkspace != null) {
-                    IconButton(onClick = { onNavigateToDetail(boundWorkspace.id) }) {
-                        Icon(
-                            imageVector = HugeIcons.Settings02,
-                            contentDescription = stringResource(R.string.workspace_detail),
+                Text(
+                    text = "🍰 Sandbox Bakery · 工作区管理",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                )
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text(
+                            text = "当前绑定工作区：${boundWorkspace?.name ?: stringResource(R.string.assistant_page_workspace_unbound)}",
+                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                         )
-                    }
-                    if (boundWorkspace.supportsTerminal()) {
-                        IconButton(onClick = { onNavigateToTerminal(boundWorkspace.id) }) {
-                            Icon(
-                                imageVector = HugeIcons.ComputerTerminal01,
-                                contentDescription = stringResource(R.string.workspace_terminal),
-                            )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            if (boundWorkspace != null) {
+                                FilledTonalButton(
+                                    onClick = {
+                                        showWorkspaceBakerySheet = false
+                                        onDismiss()
+                                        navController.navigate(Screen.WorkspaceDetail(boundWorkspace.id, initialTab = 1))
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(HugeIcons.Settings02, null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("工作区设置")
+                                }
+                                if (boundWorkspace.supportsTerminal()) {
+                                    FilledTonalButton(
+                                        onClick = {
+                                            showWorkspaceBakerySheet = false
+                                            onDismiss()
+                                            navController.navigate(Screen.WorkspaceTerminal(boundWorkspace.id))
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Icon(HugeIcons.ComputerTerminal01, null, modifier = Modifier.size(16.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("打开终端")
+                                    }
+                                }
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            FilledTonalButton(
+                                onClick = { showSelectSubSheet = true },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text("切换绑定工作区")
+                            }
+                            if (boundWorkspace != null) {
+                                FilledTonalButton(
+                                    onClick = {
+                                        showWorkspaceBakerySheet = false
+                                        showCwdSheet = true
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(HugeIcons.Folder01, null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("/workspace 目录")
+                                }
+                            }
                         }
                     }
-                } else {
-                    Icon(
-                        imageVector = HugeIcons.ArrowRight01,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
+                Spacer(Modifier.height(12.dp))
             }
-        },
-        modifier = Modifier
-            .clip(MaterialTheme.shapes.large)
-            .clickable { showSheet = true },
-    )
+        }
 
-    if (showSheet) {
-        WorkspaceSelectSheet(
-            assistant = assistant,
-            workspaces = workspaces,
-            onSelect = { workspaceId ->
-                val newId = workspaceId?.let { Uuid.parse(it) }
-                if (newId != assistant.workspaceId) {
-                    onUpdateAssistant(assistant.copy(workspaceId = newId))
-                }
-                showSheet = false
-            },
-            onManage = {
-                showSheet = false
-                onNavigateToManage()
-            },
-            onDismiss = { showSheet = false },
-        )
+        if (showSelectSubSheet) {
+            WorkspaceSelectSheet(
+                assistant = assistant,
+                workspaces = workspaces,
+                onSelect = { workspaceId ->
+                    val newId = workspaceId?.let { Uuid.parse(it) }
+                    if (newId != assistant.workspaceId) {
+                        onUpdateWorkspaceCwd(null)
+                        onUpdateAssistant(assistant.copy(workspaceId = newId))
+                    }
+                    showSelectSubSheet = false
+                },
+                onManage = {
+                    showSelectSubSheet = false
+                    showWorkspaceBakerySheet = false
+                    onDismiss()
+                    navController.navigate(Screen.Workspaces)
+                },
+                onDismiss = { showSelectSubSheet = false },
+            )
+        }
     }
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun InjectionQuickConfigSheet(
     assistant: Assistant, settings: Settings, onUpdateAssistant: (Assistant) -> Unit, onDismiss: () -> Unit

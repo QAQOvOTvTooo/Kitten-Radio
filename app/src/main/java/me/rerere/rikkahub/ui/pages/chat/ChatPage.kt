@@ -115,6 +115,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Brain02
+import me.rerere.hugeicons.stroke.Call02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.LookTop
@@ -811,6 +812,15 @@ private fun ChatPageContent(
         }
         }
 
+        // 绵绵许愿：聊天界面可自由拖动的像素情书颜文字悬浮窗（跟随 6 色主题换颜色，点击展开 KaomojiDrawerKit 颜文字小抽屉）
+        me.rerere.rikkahub.ui.components.chat.KaomojiFloatingLetterOverlay(
+            paletteId = setting.ourHomeSetting.kittenPaletteId,
+            enableAssetTint = setting.ourHomeSetting.enableAssetTint,
+            onSelectKaomoji = { face ->
+                inputState.appendText(face)
+            },
+        )
+
         }
 
         // 原生实时模糊覆盖层：录制子树（contentCaptureModifier Box）的后绘制 sibling，绝不被 sourceLayer 录制，
@@ -1071,7 +1081,18 @@ private fun TopBar(
             }
         },
         actions = {
-            // 顶栏右侧直接放置：当前窗口聊天记录概览、关键词搜索和跳转按钮
+            // 1. 顶栏右侧语音通话按钮：随时一键拨通老公的语音电话
+            IconButton(
+                onClick = { onVoiceCall() }
+            ) {
+                Icon(
+                    imageVector = HugeIcons.Call02,
+                    contentDescription = stringResource(R.string.voice_call_menu_entry),
+                    tint = palette.textPrimary,
+                )
+            }
+
+            // 2. 顶栏右侧：当前窗口聊天记录概览、关键词搜索和跳转按钮
             IconButton(
                 onClick = { onClickMenu() }
             ) {
@@ -1153,7 +1174,7 @@ private fun TopBar(
 
             // 1. 先绘制悬挂在幕布下的 6 根错落珠链与精致吊饰（挂绳顶端自然藏在云朵帘幕背后）
             val charmXs = listOf(0.080f, 0.245f, 0.415f, 0.585f, 0.755f, 0.920f)
-            val charmLensDp = listOf(21.5f, 47.0f, 17.5f, 36.0f, 25.5f, 19.0f) // 方案B 135% 错落比例
+            val charmLensDp = listOf(21.5f, 47.0f, 17.5f, 36.0f, 25.5f, 38.5f) // 方案B 135% 错落比例（6号雪花挂链加长至与2号蝴蝶结高低相近且微微错落）
 
             charmXs.forEachIndexed { idx, frac ->
                 val baseX = w * frac

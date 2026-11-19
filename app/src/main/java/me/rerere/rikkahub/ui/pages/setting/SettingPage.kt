@@ -36,12 +36,18 @@ import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.Bookshelf01
 import me.rerere.hugeicons.stroke.Brain02
+import me.rerere.hugeicons.stroke.CustomerSupport
 import me.rerere.hugeicons.stroke.Database02
+import me.rerere.hugeicons.stroke.Earth
+import me.rerere.hugeicons.stroke.GitBranch
 import me.rerere.hugeicons.stroke.ImageUpload
 import me.rerere.hugeicons.stroke.InLove
 import me.rerere.hugeicons.stroke.LookTop
+import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.Package
+import me.rerere.hugeicons.stroke.Puzzle
 import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.VolumeHigh
 import me.rerere.hugeicons.stroke.WavingHand01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -120,7 +126,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         onClick = { navController.navigate(Screen.AssistantDetail(assistant.id.toString())) },
                         leadingContent = { Icon(HugeIcons.LookTop, null) },
                         headlineContent = { Text("AI设置（${partnerName}）") },
-                        supportingContent = { Text("模型选择、名字头像、系统提示词、自定义请求、本地工具（JS/时间/闹钟/询问/2D小家行动）") },
+                        supportingContent = { Text("模型选择、名字头像、系统提示词、自定义请求、本地工具（JS/时间/询问/工作流/2D小家行动等）") },
                     )
                     // 4. 扩展管理
                     item(
@@ -129,6 +135,13 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text("扩展管理") },
                         supportingContent = { Text("提示词注入、世界书、Agent Skill、Linux Rootfs 工作区配置与文件预览编辑") },
                     )
+                    // 5. 插件管理
+                    item(
+                        onClick = { navController.navigate(Screen.SettingPlugins) },
+                        leadingContent = { Icon(HugeIcons.Puzzle, null) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_plugins_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_plugins_desc)) },
+                    )
                 }
             }
 
@@ -136,23 +149,58 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item("modelAndProviderSettings") {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text("模型、提示词与连接") },
+                    title = { Text("模型、服务与工具") },
                 ) {
-                    // 5. 模型和提示词管理
+                    // 6. 模型和提示词管理
                     item(
                         onClick = { navController.navigate(Screen.SettingModels) },
                         leadingContent = { Icon(HugeIcons.AiMagic, null) },
                         headlineContent = { Text("模型和提示词管理") },
                         supportingContent = { Text("配置手机模型、梦境模型、游戏模型、日记模型、上下文压缩模型与CoT翻译模型及提示词") },
                     )
-                    // 6. 供应商
+                    // 7. 供应商
                     item(
                         onClick = { navController.navigate(Screen.SettingProvider) },
                         leadingContent = { Icon(HugeIcons.Brain02, null) },
                         headlineContent = { Text("供应商") },
                         supportingContent = { Text("添加与填写 API Key、Base URL 与可用模型列表") },
                     )
-                    // 7. 主动消息
+                    // 8. 搜索服务
+                    item(
+                        onClick = { navController.navigate(Screen.SettingSearch) },
+                        leadingContent = { Icon(HugeIcons.Earth, null) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_search_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_search_desc)) },
+                    )
+                    // 9. 语音服务
+                    item(
+                        onClick = { navController.navigate(Screen.SettingSpeech) },
+                        leadingContent = { Icon(HugeIcons.VolumeHigh, null) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_tts_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_tts_desc)) },
+                    )
+                    // 10. MCP
+                    item(
+                        onClick = { navController.navigate(Screen.SettingMcp) },
+                        leadingContent = { Icon(HugeIcons.McpServer, null) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_mcp_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_mcp_desc)) },
+                    )
+                    // 11. 系统工具（含闹钟与倒计时）
+                    item(
+                        onClick = { navController.navigate(Screen.SettingSystemTools) },
+                        leadingContent = { Icon(HugeIcons.CustomerSupport, null) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_system_tools_title)) },
+                        supportingContent = { Text("位置、通知、日历、闹钟与倒计时、短信、相机、音乐、音量、亮度与壁纸等设备系统工具") },
+                    )
+                    // 12. 工作流
+                    item(
+                        onClick = { navController.navigate(Screen.Workflows) },
+                        leadingContent = { Icon(HugeIcons.GitBranch, null) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_workflows_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_workflows_desc)) },
+                    )
+                    // 13. 主动消息
                     item(
                         onClick = { navController.navigate(Screen.SettingProactiveMessage) },
                         leadingContent = { Icon(HugeIcons.WavingHand01, null) },

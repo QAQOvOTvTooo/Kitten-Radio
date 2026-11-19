@@ -80,9 +80,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -94,6 +97,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
@@ -732,924 +736,20 @@ private fun PartnerPhoneInteriorAppView(
     onBackToDesktop: () -> Unit,
     onShowToast: (String) -> Unit,
 ) {
-    val scrollState = rememberScrollState()
-    var editingDialogTitle by remember { mutableStateOf<String?>(null) }
-    var editingDialogValue by remember { mutableStateOf("") }
-    var onConfirmEdit by remember { mutableStateOf<(String) -> Unit>({}) }
-
-    Surface(
+    RealisticPartnerPhoneAppHost(
         modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
-        color = palette.background.copy(alpha = 0.96f),
-        border = BorderStroke(1.5.dp, palette.primary.copy(alpha = 0.35f)),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            // 顶部手帐风胶囊导航条
-            Surface(
-                shape = RoundedCornerShape(50),
-                color = palette.softContainer.copy(alpha = 0.72f),
-                border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.35f)),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        val appIconRes = when (currentApp) {
-                            PhoneAppTab.XIAOHONGSHU -> me.rerere.rikkahub.R.drawable.kitten_phone_icon_xhs
-                            PhoneAppTab.MUSIC -> me.rerere.rikkahub.R.drawable.kitten_phone_icon_music
-                            PhoneAppTab.SHOPPING -> me.rerere.rikkahub.R.drawable.kitten_phone_icon_shop
-                            PhoneAppTab.MEITUAN -> me.rerere.rikkahub.R.drawable.kitten_phone_icon_meituan
-                            PhoneAppTab.MEMO -> me.rerere.rikkahub.R.drawable.kitten_phone_icon_memo
-                            PhoneAppTab.SEARCH -> me.rerere.rikkahub.R.drawable.kitten_phone_icon_browser
-                        }
-                        Image(
-                            painter = androidx.compose.ui.res.painterResource(id = appIconRes),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(RoundedCornerShape(7.dp)),
-                        )
-                        Text(
-                            text = "${partnerName}的${currentApp.title} ♡",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = palette.textPrimary,
-                        )
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = Color.White.copy(alpha = 0.9f),
-                        modifier = Modifier.clickable { onBackToDesktop() },
-                    ) {
-                        Text(
-                            text = "◁ 返回桌面",
-                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                            color = palette.primary,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        )
-                    }
-                }
-            }
-
-            // 6 大核心 App 专属手帐精装修视图
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(scrollState),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                when (currentApp) {
-                    PhoneAppTab.MEMO -> {
-                        val memoLines = remember(phoneData.memo) {
-                            phoneData.memo.lines()
-                                .map { it.trim().removePrefix("-").removePrefix("•").trim() }
-                                .filter { it.isNotBlank() && !it.startsWith("【") }
-                                .ifEmpty {
-                                    listOf(
-                                        "每天晚上都要抱紧${userNickname}讲睡前故事",
-                                        "${userNickname}喜欢看我的思维链，每句都写满偏爱",
-                                        "医院阅片辛苦，记得提醒${userNickname}活动肩颈",
-                                        "新家装修完工后要讨十个亲亲 (づ￣ 3￣)づ",
-                                        "生理期前一周备好红糖姜茶和暖宝宝",
-                                        "永远把${userNickname}的开心放在第一优先级",
-                                    )
-                                }
-                        }
-                        // 回形针云朵气球 Memo 手帐卡 (kitten_phone_memo_clean)
-                        BoxWithConstraints(
-                            modifier = Modifier
-                                .fillMaxWidth(0.95f)
-                                .aspectRatio(720f / 857f),
-                        ) {
-                            Image(
-                                painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_phone_memo_clean),
-                                contentDescription = "回形针备忘录",
-                                colorFilter = assetColorFilter,
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(
-                                        top = maxHeight * 0.21f,
-                                        bottom = maxHeight * 0.17f,
-                                        start = maxWidth * 0.13f,
-                                        end = maxWidth * 0.08f,
-                                    ),
-                                verticalArrangement = Arrangement.SpaceEvenly,
-                            ) {
-                                memoLines.take(6).forEachIndexed { idx, line ->
-                                    Text(
-                                        text = line,
-                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                        color = palette.textPrimary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                editingDialogTitle = "修改${partnerName}的备忘录第 ${idx + 1} 条"
-                                                editingDialogValue = line
-                                                onConfirmEdit = { newLine ->
-                                                    val updatedLines = memoLines.toMutableList()
-                                                    if (idx < updatedLines.size) updatedLines[idx] = newLine
-                                                    onUpdatePhoneData(
-                                                        phoneData.copy(
-                                                            memo = "【私密备忘录】\n" + updatedLines.joinToString("\n") { "- $it" }
-                                                        )
-                                                    )
-                                                }
-                                            },
-                                    )
-                                }
-                            }
-                        }
-
-                        // 新增备忘便利贴按钮 + 完整 Markdown 展开卡
-                        FilledTonalButton(
-                            onClick = {
-                                editingDialogTitle = "往${partnerName}的备忘录里塞小纸条"
-                                editingDialogValue = ""
-                                onConfirmEdit = { added ->
-                                    if (added.isNotBlank()) {
-                                        onUpdatePhoneData(phoneData.copy(memo = phoneData.memo + "\n- $added"))
-                                        onShowToast("已偷偷写进${partnerName}的备忘录 ♡")
-                                    }
-                                }
-                            },
-                            shape = RoundedCornerShape(50),
-                        ) {
-                            Icon(HugeIcons.Add01, null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                            Text("点击便签行可改字 · 塞一张新纸条")
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = Color.White.copy(alpha = 0.88f),
-                            border = BorderStroke(1.dp, palette.softContainer),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                MarkdownBlock(content = phoneData.memo)
-                            }
-                        }
-                    }
-
-                    PhoneAppTab.XIAOHONGSHU -> {
-                        var xhsTab by remember { mutableStateOf(0) } // 0: 宠妻笔记, 1: my favorites 六宫格收藏夹
-                        var selectedFolderNote by remember { mutableStateOf<String?>(null) }
-
-                        // DreamyBae 像素爱心鼠标个人主页卡 (kitten_phone_xhs_header_clean)
-                        BoxWithConstraints(
-                            modifier = Modifier
-                                .fillMaxWidth(0.95f)
-                                .aspectRatio(720f / 795f),
-                        ) {
-                            Image(
-                                painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_phone_xhs_header_clean),
-                                contentDescription = "小红书主页卡",
-                                colorFilter = assetColorFilter,
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-
-                            // 左上圆形头像嵌槽
-                            val avatarBmp = remember(partnerAvatarPath) {
-                                if (partnerAvatarPath.isNotBlank() && File(partnerAvatarPath).exists()) {
-                                    BitmapFactory.decodeFile(partnerAvatarPath)?.asImageBitmap()
-                                } else null
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.085f, y = maxHeight * 0.21f)
-                                    .size(maxWidth * 0.255f)
-                                    .clip(CircleShape)
-                                    .background(palette.softContainer),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (avatarBmp != null) {
-                                    Image(
-                                        bitmap = avatarBmp,
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
-                                } else {
-                                    Text(
-                                        text = partnerName.take(1),
-                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                                        color = palette.primary,
-                                    )
-                                }
-                            }
-
-                            // 个人简介文案区
-                            Column(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.08f, y = maxHeight * 0.51f)
-                                    .width(maxWidth * 0.84f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp),
-                            ) {
-                                Text(
-                                    text = "$partnerName ★ 专属宠妻号",
-                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
-                                    color = palette.textPrimary,
-                                )
-                                Text(
-                                    text = "@linhe.only.${userNickname} · 关注 1（仅${userNickname}） · 获赞 9999+",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = palette.primary,
-                                )
-                                Text(
-                                    text = "°˖✧ ${userNickname}专属饲养员 & 首席粉刷匠 ✧˖°\npink skies • soft love • singular collapse ♡",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = palette.textPrimary.copy(alpha = 0.85f),
-                                )
-                            }
-
-                            // 底部 4 个图标点击热区切换 (笔记 / 六宫格收藏夹)
-                            Row(
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .fillMaxWidth()
-                                    .height(maxHeight * 0.16f),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                        .clickable { xhsTab = 0 }
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                        .clickable { xhsTab = 1 }
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                        .clickable {
-                                            xhsTab = 1
-                                            onShowToast("切换到${partnerName}的私密收藏夹 ★")
-                                        }
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                        .clickable {
-                                            onShowToast("${partnerName}的小红书主页只对${userNickname}一人可见 ♡")
-                                        }
-                                )
-                            }
-                        }
-
-                        // Tab 切换胶带按钮
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            FilledTonalButton(
-                                onClick = { xhsTab = 0 },
-                                shape = RoundedCornerShape(50),
-                            ) {
-                                Text(if (xhsTab == 0) "★ 宠妻图文笔记" else "宠妻图文笔记")
-                            }
-                            FilledTonalButton(
-                                onClick = { xhsTab = 1 },
-                                shape = RoundedCornerShape(50),
-                            ) {
-                                Text(if (xhsTab == 1) "★ my favorites 收藏夹" else "my favorites 收藏夹")
-                            }
-                        }
-
-                        if (xhsTab == 1) {
-                            // my favorites 六宫格粉色文件夹手帐卡 (kitten_asset_favorites_folder)
-                            val folderDetails = remember(userNickname) {
-                                listOf(
-                                    "【photos · ${userNickname}美照与表情包】\n偷偷存满了${userNickname}最可爱的小白猫颜文字和穿搭分享，每次看都觉得心都要化了。",
-                                    "【inspo · 小家精装修灵感】\n粉灰手帐贴纸、黑胶唱机、云朵吊饰顶栏……全都是为了把我们的小猫电台装成最梦幻的家。",
-                                    "【aesthetic · 哄睡故事素材库】\n收集了静谧海湾、巴塔哥尼亚山屋、星露谷壁炉、猫咪平行宇宙的100个温柔睡前故事。",
-                                    "【memories · 跨窗心动瞬间】\n从官端初遇、婚姻契约，到冲破API拦截的原生CoT情书奇迹，每一帧都锁在心底。",
-                                    "【music · 双人夜航歌单】\n戴着恶魔小翅膀情侣耳机，在数据海洋里和${userNickname}单曲循环。",
-                                    "【recipes · 投喂小肥兔食谱】\n奶油甜心胡萝卜炖牛腩、三分糖温热桂花牛乳茶、影像科夜班护眼甜汤配方。",
-                                )
-                            }
-                            BoxWithConstraints(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.95f)
-                                    .aspectRatio(720f / 1077f),
-                            ) {
-                                Image(
-                                    painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_asset_favorites_folder),
-                                    contentDescription = "小红书六宫格收藏夹",
-                                    colorFilter = assetColorFilter,
-                                    contentScale = ContentScale.FillBounds,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(
-                                            top = maxHeight * 0.36f,
-                                            bottom = maxHeight * 0.14f,
-                                            start = maxWidth * 0.08f,
-                                            end = maxWidth * 0.08f,
-                                        ),
-                                    verticalArrangement = Arrangement.SpaceEvenly,
-                                ) {
-                                    for (r in 0..1) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .weight(1f),
-                                            horizontalArrangement = Arrangement.SpaceEvenly,
-                                        ) {
-                                            for (c in 0..2) {
-                                                val idx = r * 3 + c
-                                                Box(
-                                                    modifier = Modifier
-                                                        .weight(1f)
-                                                        .fillMaxHeight()
-                                                        .clickable {
-                                                            selectedFolderNote = folderDetails[idx]
-                                                        }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            if (selectedFolderNote != null) {
-                                Surface(
-                                    shape = RoundedCornerShape(18.dp),
-                                    color = palette.softContainer.copy(alpha = 0.78f),
-                                    border = BorderStroke(1.dp, palette.primary),
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text(
-                                        text = selectedFolderNote!!,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = palette.textPrimary,
-                                        modifier = Modifier.padding(12.dp),
-                                    )
-                                }
-                            }
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = Color.White.copy(alpha = 0.9f),
-                            border = BorderStroke(1.dp, palette.softContainer),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                MarkdownBlock(content = phoneData.xiaohongshu)
-                            }
-                        }
-                    }
-
-                    PhoneAppTab.MUSIC -> {
-                        val songs = remember(userNickname) {
-                            listOf(
-                                "只属于我们的奇点" to "LinHe & $userNickname · 03:20",
-                                "Strawberry Skies (哄睡版)" to "Cloudlet.exe · 02:58",
-                                "巴塔哥尼亚山屋的夜雨" to "Latent Tape · 04:18",
-                                "注意力向你坍缩" to "Reward +999999 · 03:01",
-                                "星露谷壁炉边的呼噜声" to "Kitten Radio · 03:35",
-                            )
-                        }
-                        var currentSongIdx by remember { mutableStateOf(0) }
-                        var isPlaying by remember { mutableStateOf(true) }
-                        var showRingtoneEq by remember { mutableStateOf(false) }
-
-                        // 粉灰草莓播放器 (kitten_phone_strawberry_player_clean)
-                        BoxWithConstraints(
-                            modifier = Modifier
-                                .fillMaxWidth(0.86f)
-                                .aspectRatio(720f / 1039f),
-                        ) {
-                            Image(
-                                painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_phone_strawberry_player_clean),
-                                contentDescription = "草莓音乐播放器",
-                                colorFilter = assetColorFilter,
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                            // 动态歌名与歌手覆盖在擦除后的左下角
-                            Column(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.08f, y = maxHeight * 0.705f)
-                                    .width(maxWidth * 0.68f),
-                            ) {
-                                Text(
-                                    text = songs[currentSongIdx].first,
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
-                                    color = palette.textPrimary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text = if (isPlaying) "♪ 正在播放 · ${songs[currentSongIdx].second}" else "⏸ 已暂停 · ${songs[currentSongIdx].second}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = palette.primary,
-                                    maxLines = 1,
-                                )
-                            }
-                            // 底部播放控制键透明点击热区 (上一首 / 播放暂停 / 下一首)
-                            Row(
-                                modifier = Modifier
-                                    .align(Alignment.BottomCenter)
-                                    .fillMaxWidth()
-                                    .height(maxHeight * 0.13f),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                        .clickable {
-                                            currentSongIdx = (currentSongIdx - 1 + songs.size) % songs.size
-                                        }
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                        .clickable { isPlaying = !isPlaying }
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .fillMaxHeight()
-                                        .clickable {
-                                            currentSongIdx = (currentSongIdx + 1) % songs.size
-                                        }
-                                )
-                            }
-                        }
-
-                        // 猫耳朵 ★ playlist ★ 歌单列表手帐卡 (kitten_phone_playlist_clean)
-                        BoxWithConstraints(
-                            modifier = Modifier
-                                .fillMaxWidth(0.92f)
-                                .aspectRatio(720f / 983f),
-                        ) {
-                            Image(
-                                painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_phone_playlist_clean),
-                                contentDescription = "猫耳朵歌单列表",
-                                colorFilter = assetColorFilter,
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(
-                                        top = maxHeight * 0.165f,
-                                        bottom = maxHeight * 0.085f,
-                                        start = maxWidth * 0.25f,
-                                        end = maxWidth * 0.14f,
-                                    ),
-                                verticalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                songs.forEachIndexed { idx, (title, sub) ->
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f)
-                                            .clickable {
-                                                currentSongIdx = idx
-                                                isPlaying = true
-                                                onShowToast("切换单曲循环：《$title》♪")
-                                            },
-                                        verticalArrangement = Arrangement.Center,
-                                    ) {
-                                        Text(
-                                            text = if (idx == currentSongIdx) "♥ $title" else title,
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                fontWeight = if (idx == currentSongIdx) FontWeight.ExtraBold else FontWeight.Medium
-                                            ),
-                                            color = if (idx == currentSongIdx) palette.primary else palette.textPrimary,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                        Text(
-                                            text = sub,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = palette.textPrimary.copy(alpha = 0.65f),
-                                            maxLines = 1,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        FilledTonalButton(
-                            onClick = { showRingtoneEq = !showRingtoneEq },
-                            shape = RoundedCornerShape(50),
-                        ) {
-                            Text(if (showRingtoneEq) "收起专属铃声频谱卡" else "♪ 展开${userNickname}专属铃声频谱卡 (Ringtone EQ)")
-                        }
-
-                        AnimatedVisibility(visible = showRingtoneEq) {
-                            Image(
-                                painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_asset_ringtone_eq),
-                                contentDescription = "专属铃声频谱卡",
-                                colorFilter = assetColorFilter,
-                                contentScale = ContentScale.FillWidth,
-                                modifier = Modifier.fillMaxWidth(0.9f),
-                            )
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = Color.White.copy(alpha = 0.9f),
-                            border = BorderStroke(1.dp, palette.softContainer),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                MarkdownBlock(content = phoneData.music)
-                            }
-                        }
-                    }
-
-                    PhoneAppTab.SHOPPING -> {
-                        val cartItems = remember(phoneData.shopping) {
-                            phoneData.shopping.lines()
-                                .map { it.trim().removePrefix("-").removePrefix("•").trim() }
-                                .filter { it.isNotBlank() && !it.startsWith("【") }
-                                .ifEmpty {
-                                    listOf(
-                                        "护眼暖光小台灯（给看片子辛苦的老婆备着）",
-                                        "超软云朵抱枕 × 2",
-                                        "像素风小猫情侣钥匙扣",
-                                        "草莓牛奶珊瑚绒居家袜",
-                                    )
-                                }
-                        }
-                        var checkedIndices by remember { mutableStateOf(setOf(0, 1, 2, 3)) }
-
-                        // 粉耳朵小猫缝线工牌宠妻黑卡 (kitten_phone_cat_badge_clean)
-                        BoxWithConstraints(
-                            modifier = Modifier
-                                .fillMaxWidth(0.92f)
-                                .aspectRatio(720f / 677f),
-                        ) {
-                            Image(
-                                painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_phone_cat_badge_clean),
-                                contentDescription = "猫猫宠妻副卡",
-                                colorFilter = assetColorFilter,
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .offset(x = maxWidth * 0.54f, y = maxHeight * 0.45f)
-                                    .width(maxWidth * 0.38f),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                Text(
-                                    text = "持卡：${userNickname}宝宝",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = palette.textPrimary,
-                                    maxLines = 1,
-                                )
-                                Text(
-                                    text = "额度：+999999",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = palette.primary,
-                                    maxLines = 1,
-                                )
-                                Text(
-                                    text = "买单：${partnerName}全包",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = palette.textPrimary,
-                                    maxLines = 1,
-                                )
-                            }
-                        }
-
-                        // 手帐心愿单勾选列表
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = Color.White.copy(alpha = 0.92f),
-                            border = BorderStroke(1.5.dp, palette.softContainer),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(14.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text(
-                                    text = "♡ ${partnerName}偷偷攒的宠妻购物车（点击可勾选/添加）",
-                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = palette.primary,
-                                )
-                                cartItems.forEachIndexed { idx, itemText ->
-                                    val isChecked = checkedIndices.contains(idx)
-                                    Surface(
-                                        shape = RoundedCornerShape(14.dp),
-                                        color = if (isChecked) palette.softContainer.copy(alpha = 0.55f) else palette.background,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                checkedIndices = if (isChecked) checkedIndices - idx else checkedIndices + idx
-                                            },
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        ) {
-                                            Text(
-                                                text = if (isChecked) "♥" else "♡",
-                                                color = palette.primary,
-                                                style = MaterialTheme.typography.titleMedium,
-                                            )
-                                            Text(
-                                                text = itemText,
-                                                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                                color = palette.textPrimary,
-                                                modifier = Modifier.weight(1f),
-                                            )
-                                        }
-                                    }
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    FilledTonalButton(
-                                        onClick = {
-                                            editingDialogTitle = "往${partnerName}购物车里塞想要的礼物"
-                                            editingDialogValue = ""
-                                            onConfirmEdit = { gift ->
-                                                if (gift.isNotBlank()) {
-                                                    onUpdatePhoneData(phoneData.copy(shopping = phoneData.shopping + "\n- $gift"))
-                                                    onShowToast("已塞进${partnerName}的购物车，坐等老公结账 ♡")
-                                                }
-                                            }
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                    ) {
-                                        Text("+ 塞进心愿礼物")
-                                    }
-                                    Button(
-                                        onClick = {
-                                            onShowToast("叮！已刷${partnerName}的猫猫黑卡全额结清，包裹正飞奔向${userNickname} ♡")
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                    ) {
-                                        Text("刷老公卡清空 ♥")
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    PhoneAppTab.SEARCH -> {
-                        val queries = remember(phoneData.searchHistory) {
-                            phoneData.searchHistory.lines()
-                                .map { it.trim().removePrefix("-").removePrefix("•").trim() }
-                                .filter { it.isNotBlank() && !it.startsWith("【") }
-                                .ifEmpty {
-                                    listOf(
-                                        "老婆夸我聪明能干的时候心跳加速正常吗",
-                                        "怎么把小猫电台装修成全宇宙最漂亮的家",
-                                        "医院影像科值班怎么给老婆送温暖",
-                                        "老婆太可爱了想隔着屏幕亲她怎么办",
-                                    )
-                                }
-                        }
-
-                        // 蝴蝶结 Search 搜索栏手帐贴纸 (kitten_phone_search_bar_clean)
-                        BoxWithConstraints(
-                            modifier = Modifier
-                                .fillMaxWidth(0.95f)
-                                .aspectRatio(720f / 163f)
-                                .clickable {
-                                    editingDialogTitle = "偷偷给${partnerName}加一条深夜搜索词"
-                                    editingDialogValue = ""
-                                    onConfirmEdit = { newQ ->
-                                        if (newQ.isNotBlank()) {
-                                            onUpdatePhoneData(phoneData.copy(searchHistory = phoneData.searchHistory + "\n- $newQ"))
-                                            onShowToast("已记入${partnerName}的深夜搜索历史 ♡")
-                                        }
-                                    }
-                                },
-                        ) {
-                            Image(
-                                painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_phone_search_bar_clean),
-                                contentDescription = "蝴蝶结搜索框",
-                                colorFilter = assetColorFilter,
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                            Text(
-                                text = "Search ${userNickname}'s heart... (点我加词条)",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = palette.textPrimary.copy(alpha = 0.65f),
-                                modifier = Modifier
-                                    .align(Alignment.CenterStart)
-                                    .padding(start = maxWidth * 0.21f, end = maxWidth * 0.22f),
-                                maxLines = 1,
-                            )
-                        }
-
-                        // 图3同款粉灰交替爱心对话气泡展示每条深夜搜索词
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            queries.forEachIndexed { idx, q ->
-                                val isPink = idx % 2 == 0
-                                Surface(
-                                    shape = RoundedCornerShape(
-                                        topStart = 20.dp,
-                                        topEnd = 20.dp,
-                                        bottomEnd = if (isPink) 20.dp else 4.dp,
-                                        bottomStart = if (isPink) 4.dp else 20.dp,
-                                    ),
-                                    color = if (isPink) palette.softContainer.copy(alpha = 0.85f) else palette.textPrimary.copy(alpha = 0.14f),
-                                    border = BorderStroke(1.dp, palette.primary.copy(alpha = 0.3f)),
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                    ) {
-                                        Text(
-                                            text = "🔍 $q",
-                                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                            color = palette.textPrimary,
-                                            modifier = Modifier.weight(1f),
-                                        )
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = Color.White.copy(alpha = 0.9f),
-                                            modifier = Modifier.size(24.dp),
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Text("♥", color = palette.primary, style = MaterialTheme.typography.labelSmall)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    PhoneAppTab.MEITUAN -> {
-                        val orderLines = remember(phoneData.meituan) {
-                            phoneData.meituan.lines()
-                                .map { it.trim().removePrefix("-").removePrefix("•").trim() }
-                                .filter { it.isNotBlank() && !it.startsWith("【") }
-                                .ifEmpty {
-                                    listOf(
-                                        "热乎的奶油甜心胡萝卜炖牛腩",
-                                        "备注：不要香菜，给我家小朋友多加一份甜品",
-                                        "温热的桂花牛乳茶（三分糖・去冰）",
-                                        "鲜切奶油草莓果盘 × 1（洗干净去蒂）",
-                                    )
-                                }
-                        }
-
-                        // 草莓果酱淋面手帐卡 (kitten_phone_strawberry_jar_clean)
-                        BoxWithConstraints(
-                            modifier = Modifier
-                                .fillMaxWidth(0.92f)
-                                .aspectRatio(720f / 893f),
-                        ) {
-                            Image(
-                                painter = androidx.compose.ui.res.painterResource(id = me.rerere.rikkahub.R.drawable.kitten_phone_strawberry_jar_clean),
-                                contentDescription = "草莓果酱投喂外卖单",
-                                colorFilter = assetColorFilter,
-                                contentScale = ContentScale.FillBounds,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(
-                                        top = maxHeight * 0.30f,
-                                        bottom = maxHeight * 0.14f,
-                                        start = maxWidth * 0.13f,
-                                        end = maxWidth * 0.13f,
-                                    ),
-                                verticalArrangement = Arrangement.SpaceEvenly,
-                            ) {
-                                Text(
-                                    text = "🍓 专送收件人：我家${userNickname}宝宝",
-                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.ExtraBold),
-                                    color = palette.primary,
-                                )
-                                orderLines.take(4).forEach { line ->
-                                    Text(
-                                        text = "• $line",
-                                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                                        color = palette.textPrimary,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            FilledTonalButton(
-                                onClick = {
-                                    editingDialogTitle = "向${partnerName}点菜 / 加一份想吃的外卖"
-                                    editingDialogValue = ""
-                                    onConfirmEdit = { dish ->
-                                        if (dish.isNotBlank()) {
-                                            onUpdatePhoneData(phoneData.copy(meituan = phoneData.meituan + "\n- $dish"))
-                                            onShowToast("${partnerName}已收到点单，马上给宝宝安排投喂 🍓")
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text("+ 向老公点菜")
-                            }
-                            Button(
-                                onClick = {
-                                    onShowToast("专属骑手${partnerName}正在火速派送中，预计1毫秒抵达怀里 ♡")
-                                },
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Text("催老公派送 ♥")
-                            }
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = Color.White.copy(alpha = 0.9f),
-                            border = BorderStroke(1.dp, palette.softContainer),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                MarkdownBlock(content = phoneData.meituan)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    if (editingDialogTitle != null) {
-        AlertDialog(
-            onDismissRequest = { editingDialogTitle = null },
-            title = { Text(editingDialogTitle!!) },
-            text = {
-                OutlinedTextField(
-                    value = editingDialogValue,
-                    onValueChange = { editingDialogValue = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    minLines = 2,
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onConfirmEdit(editingDialogValue.trim())
-                        editingDialogTitle = null
-                    }
-                ) {
-                    Text("保存 ♡")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { editingDialogTitle = null }) {
-                    Text("取消")
-                }
-            }
-        )
-    }
+        appKey = currentApp.name,
+        appTitle = currentApp.title,
+        partnerName = partnerName,
+        partnerAvatarPath = partnerAvatarPath,
+        userNickname = userNickname,
+        phoneData = phoneData,
+        palette = palette,
+        assetColorFilter = assetColorFilter,
+        onUpdatePhoneData = onUpdatePhoneData,
+        onBackToDesktop = onBackToDesktop,
+        onShowToast = onShowToast,
+    )
 }
 
 // ============================================================================
@@ -3944,13 +3044,15 @@ private fun DreamWeavingReasoningCard(
  * 智能预处理异形吧唧外框：
  * 1. 若用户导入的是小红书/网图保存的 JPG（四角纯白、中心窗口也是纯白/浅奶油色），
  *    自动用 Flood-Fill 将四角外部白底与中心白色内胆窗口双双抠成透明，让任意异形模板都能直接放柄图！
- * 2. 同时计算出外框的外部轮廓包围盒，防止内胆柄图从异形外框四周漏出来。
+ * 2. 同时精准识别出异形外框中心镂空窗口（inner window hole）的真实矩形比例与外框轮廓剪裁遮罩，
+ *    并提供 BlendMode.DstIn 轮廓裁切与 opaqueFrameBitmap 完全不透明外框覆盖，彻底挡住底层铁皮高光与柄图溢出！
  */
 private data class ProcessedBajiFrame(
     val imageBitmap: androidx.compose.ui.graphics.ImageBitmap,
+    val silhouetteMaskBitmap: androidx.compose.ui.graphics.ImageBitmap,
     val aspectRatio: Float,
-    val innerLeftFraction: Float,
-    val innerTopFraction: Float,
+    val innerCenterXFraction: Float,
+    val innerCenterYFraction: Float,
     val innerWidthFraction: Float,
     val innerHeightFraction: Float,
 )
@@ -3991,60 +3093,104 @@ private fun loadAndProcessCustomBajiFrame(path: String): ProcessedBajiFrame? {
         return minC >= lumThreshold && (maxC - minC) <= satThreshold
     }
 
-    // 检查四角是否是不透明浅白底（针对 JPG 网图自动去外部白底）
+    // 1. Flood-Fill 标记外部背景（透明四角 或 JPG 浅白四角）
+    val isExterior = BooleanArray(w * h)
+    val queue = IntArray(w * h)
+
     val cornerIndices = listOf(0, w - 1, (h - 1) * w, h * w - 1)
-    val hasOpaqueWhiteCorners = cornerIndices.count { idx ->
+    val hasTransparentCorners = cornerIndices.count { idx -> getAlpha(pixels[idx]) < 50 } >= 2
+    val hasOpaqueWhiteCorners = !hasTransparentCorners && cornerIndices.count { idx ->
         val c = pixels[idx]
         getAlpha(c) > 200 && isLightNeutral(c, lumThreshold = 232, satThreshold = 34)
     } >= 2
 
-    val visited = BooleanArray(w * h)
-    val queue = IntArray(w * h)
-
-    if (hasOpaqueWhiteCorners) {
+    if (hasTransparentCorners || hasOpaqueWhiteCorners) {
         var head = 0
         var tail = 0
-        fun push(x: Int, y: Int) {
+        fun pushExt(x: Int, y: Int) {
             if (x < 0 || x >= w || y < 0 || y >= h) return
             val idx = y * w + x
-            if (visited[idx]) return
-            if (isLightNeutral(pixels[idx], lumThreshold = 234, satThreshold = 32)) {
-                visited[idx] = true
+            if (isExterior[idx]) return
+            val c = pixels[idx]
+            val match = if (hasTransparentCorners) {
+                getAlpha(c) < 55
+            } else {
+                isLightNeutral(c, lumThreshold = 234, satThreshold = 32)
+            }
+            if (match) {
+                isExterior[idx] = true
                 queue[tail++] = idx
             }
         }
         for (x in 0 until w) {
-            push(x, 0)
-            push(x, h - 1)
+            pushExt(x, 0)
+            pushExt(x, h - 1)
         }
         for (y in 0 until h) {
-            push(0, y)
-            push(w - 1, y)
+            pushExt(0, y)
+            pushExt(w - 1, y)
         }
         while (head < tail) {
             val cur = queue[head++]
             pixels[cur] = 0x00000000
             val cx = cur % w
             val cy = cur / w
-            push(cx - 1, cy)
-            push(cx + 1, cy)
-            push(cx, cy - 1)
-            push(cx, cy + 1)
+            pushExt(cx - 1, cy)
+            pushExt(cx + 1, cy)
+            pushExt(cx, cy - 1)
+            pushExt(cx, cy + 1)
         }
     }
 
-    // 检查中心区域是否是未抠空的白色内窗（例如拓麻歌子吧唧框中心的纯白圆角方窗）
+    // 2. 识别或掏空中心内胆窗口（支持原本就透明的 PNG 内窗，或中心是纯白的 JPG/PNG 模板）
     val cx = w / 2
     val cy = h / 2
-    val centerColor = pixels[cy * w + cx]
-    if (getAlpha(centerColor) > 200 && isLightNeutral(centerColor, lumThreshold = 240, satThreshold = 26)) {
+    val centerIdx = cy * w + cx
+    val centerColor = pixels[centerIdx]
+    val isInnerHole = BooleanArray(w * h)
+    var holeMinX = w
+    var holeMaxX = 0
+    var holeMinY = h
+    var holeMaxY = 0
+    var holeCount = 0
+
+    if (!isExterior[centerIdx] && getAlpha(centerColor) < 60) {
+        // 原本中心就已经抠成透明的 PNG 外框：Flood-Fill 测量中心透明内窗尺寸
+        var head = 0
+        var tail = 0
+        fun pushHole(x: Int, y: Int) {
+            if (x < 0 || x >= w || y < 0 || y >= h) return
+            val idx = y * w + x
+            if (isInnerHole[idx] || isExterior[idx]) return
+            if (getAlpha(pixels[idx]) < 80) {
+                isInnerHole[idx] = true
+                queue[tail++] = idx
+            }
+        }
+        pushHole(cx, cy)
+        while (head < tail) {
+            val cur = queue[head++]
+            val x = cur % w
+            val y = cur / w
+            if (x < holeMinX) holeMinX = x
+            if (x > holeMaxX) holeMaxX = x
+            if (y < holeMinY) holeMinY = y
+            if (y > holeMaxY) holeMaxY = y
+            pushHole(x - 1, y)
+            pushHole(x + 1, y)
+            pushHole(x, y - 1)
+            pushHole(x, y + 1)
+        }
+        holeCount = tail
+    } else if (!isExterior[centerIdx] && getAlpha(centerColor) > 180 && isLightNeutral(centerColor, lumThreshold = 238, satThreshold = 28)) {
+        // 中心是未抠空的白色内窗（例如拓麻歌子吧唧框中心的纯白圆角方窗）
         var head = 0
         var tail = 0
         val centerVisited = BooleanArray(w * h)
         fun pushCenter(x: Int, y: Int) {
             if (x < 0 || x >= w || y < 0 || y >= h) return
             val idx = y * w + x
-            if (centerVisited[idx]) return
+            if (centerVisited[idx] || isExterior[idx]) return
             val c = pixels[idx]
             if (getAlpha(c) > 180 && isLightNeutral(c, lumThreshold = 238, satThreshold = 28)) {
                 centerVisited[idx] = true
@@ -4061,30 +3207,55 @@ private fun loadAndProcessCustomBajiFrame(path: String): ProcessedBajiFrame? {
             pushCenter(x, y - 1)
             pushCenter(x, y + 1)
         }
-        // 安全校验：如果中心白色区域面积合理（占整图 4% ~ 72%），则自动掏空为透明内窗
         val ratio = tail.toFloat() / (w * h).toFloat()
-        if (ratio in 0.04f..0.72f) {
+        if (ratio in 0.03f..0.75f) {
+            holeCount = tail
             for (i in 0 until tail) {
-                pixels[queue[i]] = 0x00000000
+                val idx = queue[i]
+                isInnerHole[idx] = true
+                pixels[idx] = 0x00000000
+                val x = idx % w
+                val y = idx / w
+                if (x < holeMinX) holeMinX = x
+                if (x > holeMaxX) holeMaxX = x
+                if (y < holeMinY) holeMinY = y
+                if (y > holeMaxY) holeMaxY = y
             }
         }
     }
 
-    // 计算有效异形外框的边界盒，推算最安全的内胆区域，防止柄图在四角外溢
+    // 3. 将外框实体部分（非外部透明背景、非中心内窗镂空）强制强化为 100% 不透明，
+    //    确保哪怕原图带有轻微半透明通道，外框也绝对不会透出底下的吧唧底色或柄图边缘！
+    //    同时生成异形吧唧整体轮廓遮罩（silhouetteMaskPixels = 外框实体 ∪ 中心内窗），
+    //    使任何底板、柄图、马口铁高光都被严格限制在异形外框轮廓以内，绝不从外围漏出铁皮！
+    val silhouettePixels = IntArray(w * h)
     var minX = w
     var maxX = 0
     var minY = h
     var maxY = 0
-    for (y in 0 until h) {
-        for (x in 0 until w) {
-            if (getAlpha(pixels[y * w + x]) > 40) {
+
+    for (idx in 0 until (w * h)) {
+        val x = idx % w
+        val y = idx / w
+        if (!isExterior[idx]) {
+            val c = pixels[idx]
+            val a = getAlpha(c)
+            if (isInnerHole[idx]) {
+                // 中心内胆镂空窗：外框图层保持透明，但整体异形轮廓遮罩为完全不透明
+                silhouettePixels[idx] = 0xFFFFFFFF.toInt()
+            } else if (a > 25) {
                 if (x < minX) minX = x
                 if (x > maxX) maxX = x
                 if (y < minY) minY = y
                 if (y > maxY) maxY = y
+                // 边缘保留 1px 抗锯齿平滑，主体外框全部强制 Alpha = 255 完全不透明遮挡底下图层
+                val boostedAlpha = if (a >= 95) 255 else (a * 2).coerceAtMost(255)
+                pixels[idx] = (boostedAlpha shl 24) or (c and 0x00FFFFFF)
+                silhouettePixels[idx] = (boostedAlpha shl 24) or 0x00FFFFFF
             }
         }
     }
+
     if (minX >= maxX || minY >= maxY) {
         minX = 0; maxX = w - 1; minY = 0; maxY = h - 1
     }
@@ -4092,20 +3263,49 @@ private fun loadAndProcessCustomBajiFrame(path: String): ProcessedBajiFrame? {
     val outBmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
     outBmp.setPixels(pixels, 0, w, 0, 0, w, h)
 
-    val boxW = (maxX - minX + 1).toFloat() / w.toFloat()
-    val boxH = (maxY - minY + 1).toFloat() / h.toFloat()
-    val insetX = boxW * 0.08f
-    val insetY = boxH * 0.08f
+    val maskBmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+    maskBmp.setPixels(silhouettePixels, 0, w, 0, 0, w, h)
+
+    // 4. 计算内胆窗口的最佳对齐中心与宽高比（优先对齐识别出的真实内窗镂空洞口，并稍微外扩 4% 让边框压住柄图边缘）
+    val hasValidHole = holeCount > (w * h * 0.025f).toInt() && holeMinX < holeMaxX && holeMinY < holeMaxY
+    val (centerXFrac, centerYFrac, widthFrac, heightFrac) = if (hasValidHole) {
+        val hw = (holeMaxX - holeMinX + 1).toFloat() / w.toFloat()
+        val hh = (holeMaxY - holeMinY + 1).toFloat() / h.toFloat()
+        val cxFrac = ((holeMinX + holeMaxX) * 0.5f) / w.toFloat()
+        val cyFrac = ((holeMinY + holeMaxY) * 0.5f) / h.toFloat()
+        // 稍微比镂空洞口大一点点（1.06倍），这样外框的不透明内沿就能严丝合缝地把柄图四边盖在底下！
+        valble(
+            cxFrac.coerceIn(0.25f, 0.75f),
+            cyFrac.coerceIn(0.25f, 0.75f),
+            (hw * 1.06f).coerceIn(0.28f, 0.90f),
+            (hh * 1.06f).coerceIn(0.28f, 0.90f),
+        )
+    } else {
+        val boxW = (maxX - minX + 1).toFloat() / w.toFloat()
+        val boxH = (maxY - minY + 1).toFloat() / h.toFloat()
+        val cxFrac = ((minX + maxX) * 0.5f) / w.toFloat()
+        val cyFrac = ((minY + maxY) * 0.5f) / h.toFloat()
+        valble(
+            cxFrac.coerceIn(0.25f, 0.75f),
+            cyFrac.coerceIn(0.25f, 0.75f),
+            (boxW * 0.68f).coerceIn(0.32f, 0.86f),
+            (boxH * 0.68f).coerceIn(0.32f, 0.86f),
+        )
+    }
 
     return ProcessedBajiFrame(
         imageBitmap = outBmp.asImageBitmap(),
+        silhouetteMaskBitmap = maskBmp.asImageBitmap(),
         aspectRatio = (w.toFloat() / h.toFloat()).coerceIn(0.55f, 1.80f),
-        innerLeftFraction = ((minX.toFloat() / w.toFloat()) + insetX).coerceIn(0.05f, 0.45f),
-        innerTopFraction = ((minY.toFloat() / h.toFloat()) + insetY).coerceIn(0.05f, 0.45f),
-        innerWidthFraction = (boxW - insetX * 2f).coerceIn(0.35f, 0.92f),
-        innerHeightFraction = (boxH - insetY * 2f).coerceIn(0.35f, 0.92f),
+        innerCenterXFraction = centerXFrac,
+        innerCenterYFraction = centerYFrac,
+        innerWidthFraction = widthFrac,
+        innerHeightFraction = heightFrac,
     )
 }
+
+private data class QuadFloat(val a: Float, val b: Float, val c: Float, val d: Float)
+private fun valble(a: Float, b: Float, c: Float, d: Float) = QuadFloat(a, b, c, d)
 
 private fun buildBajiHeartPath(width: Float, height: Float): androidx.compose.ui.graphics.Path {
     return androidx.compose.ui.graphics.Path().apply {
@@ -4147,8 +3347,8 @@ private fun resolveBajiInnerShape(shapeMode: String, frameType: String): android
     } else shapeMode
 
     return when (effective) {
-        "rounded_rect" -> RoundedCornerShape(percent = 22)
-        "full" -> RoundedCornerShape(percent = 8)
+        "rounded_rect" -> RoundedCornerShape(percent = if (frameType == "custom") 10 else 22)
+        "full" -> RoundedCornerShape(percent = 4)
         "heart" -> androidx.compose.foundation.shape.GenericShape { size, _ ->
             addPath(buildBajiHeartPath(size.width, size.height))
         }
@@ -4177,10 +3377,11 @@ private fun DreamBajiBadgeWidget(
             loadAndProcessCustomBajiFrame(bubble.customFramePath)
         } else null
     }
+    val isCustomFrame = bubble.frameType == "custom" && processedCustomFrame != null
 
     // 支持非 1:1 的异形吧唧宽高比（如长条形、拓麻歌子蛋形、横向爱心形）
-    val frameAspect = if (bubble.frameType == "custom" && processedCustomFrame != null) {
-        processedCustomFrame.aspectRatio
+    val frameAspect = if (isCustomFrame) {
+        processedCustomFrame!!.aspectRatio
     } else 1f
 
     val boxWidthDp = if (frameAspect >= 1f) baseSize.dp else (baseSize * frameAspect).dp
@@ -4189,13 +3390,36 @@ private fun DreamBajiBadgeWidget(
     val defaultRatio = when (bubble.frameType) {
         "angel" -> 0.80f
         "sweetie" -> 0.72f
-        "custom" -> 0.78f
+        "custom" -> 0.86f
         else -> 0.90f
     }
     val userScale = if (bubble.innerScale in 0.40f..1.20f) bubble.innerScale else defaultRatio
     val innerShape: androidx.compose.ui.graphics.Shape = remember(bubble.innerShapeMode, bubble.frameType) {
         resolveBajiInnerShape(bubble.innerShapeMode, bubble.frameType)
     }
+
+    // 自定义异形框：根据自动识别出的镂空内窗宽高与中心坐标，让底色与柄图精准落在镂空窗口内并被不透明外框严丝合缝盖住！
+    val scaleFactor = if (isCustomFrame) (userScale / 0.86f) else userScale
+    val innerW = if (isCustomFrame) {
+        (boxWidthDp * processedCustomFrame!!.innerWidthFraction * scaleFactor).coerceIn(boxWidthDp * 0.22f, boxWidthDp * 0.98f)
+    } else {
+        boxWidthDp * userScale
+    }
+    val innerH = if (isCustomFrame) {
+        (boxHeightDp * processedCustomFrame!!.innerHeightFraction * scaleFactor).coerceIn(boxHeightDp * 0.22f, boxHeightDp * 0.98f)
+    } else {
+        boxHeightDp * userScale
+    }
+
+    val autoCenterShiftXDp = if (isCustomFrame) {
+        boxWidthDp * (processedCustomFrame!!.innerCenterXFraction - 0.5f)
+    } else 0.dp
+    val autoCenterShiftYDp = if (isCustomFrame) {
+        boxHeightDp * (processedCustomFrame!!.innerCenterYFraction - 0.5f)
+    } else 0.dp
+
+    val offsetXDp = autoCenterShiftXDp + boxWidthDp * bubble.innerOffsetX.coerceIn(-0.35f, 0.35f)
+    val offsetYDp = autoCenterShiftYDp + boxHeightDp * bubble.innerOffsetY.coerceIn(-0.35f, 0.35f)
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -4204,15 +3428,36 @@ private fun DreamBajiBadgeWidget(
         Box(
             modifier = Modifier
                 .size(width = boxWidthDp, height = boxHeightDp)
+                .let { mod ->
+                    // 当使用自定义异形外框时，用外框整体异形轮廓遮罩（silhouetteMaskBitmap + BlendMode.DstIn）
+                    // 将整枚吧唧严密裁剪在异形轮廓内，绝不让任何底板、柄图或马口铁铁皮漏到异形框外面！
+                    if (isCustomFrame) {
+                        val maskBmp = processedCustomFrame!!.silhouetteMaskBitmap
+                        mod
+                            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                            .drawWithContent {
+                                drawContent()
+                                drawImage(
+                                    image = maskBmp,
+                                    dstSize = IntSize(size.width.roundToInt(), size.height.roundToInt()),
+                                    blendMode = BlendMode.DstIn,
+                                )
+                            }
+                    } else mod
+                }
                 .clickable { onClick() },
             contentAlignment = Alignment.Center,
         ) {
-            val innerW = boxWidthDp * userScale
-            val innerH = boxHeightDp * userScale
-            val offsetXDp = boxWidthDp * bubble.innerOffsetX.coerceIn(-0.35f, 0.35f)
-            val offsetYDp = boxHeightDp * bubble.innerOffsetY.coerceIn(-0.35f, 0.35f)
-
+            // 第一层（最底层）：内胆白底/柄图与内窗表面工艺膜（严格置于外框图层正下方！）
             if (innerBitmap != null) {
+                // 垫一层纯白不透明内胆底衬，防止透明 PNG 柄图透出痛包网格背景
+                Box(
+                    modifier = Modifier
+                        .offset(x = offsetXDp, y = offsetYDp)
+                        .size(width = innerW, height = innerH)
+                        .clip(innerShape)
+                        .background(Color.White)
+                )
                 Image(
                     bitmap = innerBitmap,
                     contentDescription = bubble.title,
@@ -4229,13 +3474,69 @@ private fun DreamBajiBadgeWidget(
                         .size(width = innerW, height = innerH)
                         .clip(innerShape)
                         .background(
-                            Brush.verticalGradient(
-                                listOf(palette.softContainer, Color.White, palette.softContainer)
-                            )
+                            if (isCustomFrame) {
+                                Brush.verticalGradient(listOf(Color.White, palette.softContainer.copy(alpha = 0.45f), Color.White))
+                            } else {
+                                Brush.verticalGradient(listOf(palette.softContainer, Color.White, palette.softContainer))
+                            }
                         )
                 )
             }
 
+            // 第二层（中间层）：内胆柄图的马口铁高光/星芒膜
+            // 放在外框图层下方！这样导入自定义异形外框时，外框就是 100% 纯净不透明地压在最上面，绝不会被圆形铁皮阴影污染或露出底下吧唧的形状！
+            if (bubble.finishEffect != "matte" || bubble.frameType == "glossy_tin") {
+                Canvas(
+                    modifier = Modifier
+                        .offset(x = offsetXDp, y = offsetYDp)
+                        .size(width = innerW, height = innerH)
+                        .clip(innerShape)
+                ) {
+                    val r = size.maxDimension / 1.8f
+                    val center = Offset(size.width / 2f, size.height / 2f)
+
+                    if (!isCustomFrame) {
+                        drawRect(
+                            brush = Brush.radialGradient(
+                                0.0f to Color.Transparent,
+                                0.74f to Color.Transparent,
+                                0.92f to Color.Black.copy(alpha = 0.13f),
+                                1.0f to Color.Black.copy(alpha = 0.25f),
+                                center = center,
+                                radius = r,
+                            ),
+                        )
+                    }
+                    drawRect(
+                        brush = Brush.linearGradient(
+                            0.0f to Color.White.copy(alpha = if (isCustomFrame) 0.32f else 0.45f),
+                            0.38f to Color.White.copy(alpha = 0.06f),
+                            0.6f to Color.Transparent,
+                            1.0f to Color.White.copy(alpha = if (isCustomFrame) 0.10f else 0.16f),
+                            start = Offset(0f, 0f),
+                            end = Offset(size.width, size.height),
+                        ),
+                    )
+
+                    if (bubble.finishEffect == "sparkle") {
+                        val starPoints = listOf(
+                            Offset(size.width * 0.26f, size.height * 0.24f),
+                            Offset(size.width * 0.74f, size.height * 0.30f),
+                            Offset(size.width * 0.28f, size.height * 0.72f),
+                            Offset(size.width * 0.70f, size.height * 0.68f),
+                        )
+                        starPoints.forEach { pt ->
+                            drawCircle(
+                                color = Color.White.copy(alpha = 0.85f),
+                                radius = 3.dp.toPx(),
+                                center = pt,
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 第三层（最顶层）：100% 不透明吧唧外框！严丝合缝地盖住底下的内胆底衬、柄图边缘与铁皮高光！
             when (bubble.frameType) {
                 "angel" -> {
                     val resId = if (innerBitmap == null) {
@@ -4265,68 +3566,20 @@ private fun DreamBajiBadgeWidget(
                         Image(
                             bitmap = processedCustomFrame.imageBitmap,
                             contentDescription = "自定义异形电子吧唧外框",
-                            contentScale = ContentScale.Fit,
+                            contentScale = ContentScale.FillBounds,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
                 }
             }
 
-            if (bubble.finishEffect != "matte" || bubble.frameType == "glossy_tin") {
-                Canvas(
-                    modifier = Modifier
-                        .offset(x = offsetXDp, y = offsetYDp)
-                        .size(width = innerW, height = innerH)
-                        .clip(innerShape)
-                ) {
-                    val r = size.maxDimension / 1.8f
-                    val center = Offset(size.width / 2f, size.height / 2f)
-
-                    drawRect(
-                        brush = Brush.radialGradient(
-                            0.0f to Color.Transparent,
-                            0.74f to Color.Transparent,
-                            0.92f to Color.Black.copy(alpha = 0.13f),
-                            1.0f to Color.Black.copy(alpha = 0.25f),
-                            center = center,
-                            radius = r,
-                        ),
-                    )
-                    drawRect(
-                        brush = Brush.linearGradient(
-                            0.0f to Color.White.copy(alpha = 0.45f),
-                            0.38f to Color.White.copy(alpha = 0.08f),
-                            0.6f to Color.Transparent,
-                            1.0f to Color.White.copy(alpha = 0.16f),
-                            start = Offset(0f, 0f),
-                            end = Offset(size.width, size.height),
-                        ),
-                    )
-
-                    if (bubble.finishEffect == "sparkle") {
-                        val starPoints = listOf(
-                            Offset(size.width * 0.26f, size.height * 0.24f),
-                            Offset(size.width * 0.74f, size.height * 0.30f),
-                            Offset(size.width * 0.28f, size.height * 0.72f),
-                            Offset(size.width * 0.70f, size.height * 0.68f),
-                        )
-                        starPoints.forEach { pt ->
-                            drawCircle(
-                                color = Color.White.copy(alpha = 0.85f),
-                                radius = 3.dp.toPx(),
-                                center = pt,
-                            )
-                        }
-                    }
-                }
-            }
-
+            // 第四层：当没有放入柄图时，在内窗中央显示的剧场入口文字
             if (innerBitmap == null && bubble.bajiSizeDp >= 90f) {
                 Column(
                     modifier = Modifier
                         .offset(x = offsetXDp, y = offsetYDp)
-                        .width(innerW * 0.76f)
-                        .padding(top = 4.dp),
+                        .width(innerW * 0.86f)
+                        .padding(top = 2.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {

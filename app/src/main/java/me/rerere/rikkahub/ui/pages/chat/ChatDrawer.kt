@@ -358,7 +358,7 @@ fun ChatDrawerContent(
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp),
                                 ) {
                                     Surface(
                                         onClick = { navigateToChatPage(navController) },
@@ -366,21 +366,22 @@ fun ChatDrawerContent(
                                         color = palette.primary.copy(alpha = 0.22f),
                                     ) {
                                         Row(
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(3.dp),
                                         ) {
                                             Icon(
                                                 imageVector = HugeIcons.Add01,
                                                 contentDescription = "开启新窗口",
                                                 tint = palette.textPrimary,
-                                                modifier = Modifier.size(13.dp),
+                                                modifier = Modifier.size(12.dp),
                                             )
                                             Text(
                                                 text = "新窗口",
-                                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                                                 color = palette.textPrimary,
                                                 maxLines = 1,
+                                                softWrap = false,
                                             )
                                         }
                                     }
@@ -1130,10 +1131,8 @@ private fun FolderBar(
     val selectedFolder = folders.find { it.id == selectedFolderId }
 
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         FolderChip(
@@ -1157,14 +1156,14 @@ private fun FolderBar(
                     .clickable { folderMenuExpanded = true },
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
                         imageVector = HugeIcons.Folder01,
                         contentDescription = null,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(13.dp),
                         tint = if (selectedFolder != null) {
                             MaterialTheme.colorScheme.onSecondaryContainer
                         } else {
@@ -1173,7 +1172,7 @@ private fun FolderBar(
                     )
                     Text(
                         text = selectedFolder?.name ?: "文件夹",
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                         color = if (selectedFolder != null) {
                             MaterialTheme.colorScheme.onSecondaryContainer
                         } else {
@@ -1181,11 +1180,12 @@ private fun FolderBar(
                         },
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
                     )
                     Icon(
                         imageVector = HugeIcons.ArrowDown01,
                         contentDescription = null,
-                        modifier = Modifier.size(13.dp),
+                        modifier = Modifier.size(12.dp),
                         tint = if (selectedFolder != null) {
                             MaterialTheme.colorScheme.onSecondaryContainer
                         } else {
@@ -1314,17 +1314,18 @@ private fun FolderChip(
             )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
         ) {
             if (icon != null) {
-                Icon(icon, null, modifier = Modifier.size(14.dp))
+                Icon(icon, null, modifier = Modifier.size(13.dp))
             }
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                 maxLines = 1,
+                softWrap = false,
                 overflow = TextOverflow.Ellipsis,
             )
         }

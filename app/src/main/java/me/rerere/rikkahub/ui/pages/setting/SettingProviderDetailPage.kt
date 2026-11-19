@@ -67,6 +67,7 @@ import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -1319,34 +1320,36 @@ private fun ModelCard(
     SwipeToDismissBox(
         state = swipeToDismissBoxState,
         backgroundContent = {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = {
-                        scope.launch {
-                            swipeToDismissBoxState.reset()
-                        }
-                    }
+            if (swipeToDismissBoxState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(HugeIcons.Cancel01, null)
-                }
-                FilledIconButton(
-                    onClick = {
-                        scope.launch {
-                            onDelete()
-                            swipeToDismissBoxState.reset()
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                swipeToDismissBoxState.reset()
+                            }
                         }
+                    ) {
+                        Icon(HugeIcons.Cancel01, null)
                     }
-                ) {
-                    Icon(
-                        HugeIcons.Delete01,
-                        contentDescription = stringResource(R.string.chat_page_delete)
-                    )
+                    FilledIconButton(
+                        onClick = {
+                            scope.launch {
+                                onDelete()
+                                swipeToDismissBoxState.reset()
+                            }
+                        }
+                    ) {
+                        Icon(
+                            HugeIcons.Delete01,
+                            contentDescription = stringResource(R.string.chat_page_delete)
+                        )
+                    }
                 }
             }
         },
@@ -1406,6 +1409,17 @@ private fun ModelCard(
                     }
                 ) {
                     Icon(HugeIcons.Tools, "Edit")
+                }
+                IconButton(
+                    onClick = {
+                        onDelete()
+                    }
+                ) {
+                    Icon(
+                        HugeIcons.Delete01,
+                        contentDescription = stringResource(R.string.chat_page_delete),
+                        tint = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
         }

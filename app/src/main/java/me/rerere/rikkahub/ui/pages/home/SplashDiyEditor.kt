@@ -420,6 +420,10 @@ fun SplashDiyFullEditorModal(
     var selectedItemId by remember { mutableStateOf<String?>("__PLAYER__") }
     var isPanelCollapsed by remember { mutableStateOf(false) }
     var isTopBarCollapsed by remember { mutableStateOf(false) }
+    var collapsedToolbarOffsetX by remember { mutableStateOf(0f) }
+    var collapsedToolbarOffsetY by remember { mutableStateOf(0f) }
+    var collapsedTopBarOffsetX by remember { mutableStateOf(0f) }
+    var collapsedTopBarOffsetY by remember { mutableStateOf(0f) }
     var showAddTextDialog by remember { mutableStateOf(false) }
     var showStickerPickerDialog by remember { mutableStateOf(false) }
     var showSongDialog by remember { mutableStateOf(false) }
@@ -584,13 +588,28 @@ fun SplashDiyFullEditorModal(
             }
         }
 
-        // 顶部操作栏：支持一键收起成右上角小胶囊，彻底不挡顶部手帐区域
+        // 顶部操作栏：支持一键收起成可自由拖动的小胶囊，彻底不挡顶部手帐区域
         if (isTopBarCollapsed) {
             Surface(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = 8.dp, end = 12.dp),
+                    .padding(top = 8.dp, end = 12.dp)
+                    .offset {
+                        IntOffset(
+                            collapsedTopBarOffsetX.roundToInt(),
+                            collapsedTopBarOffsetY.roundToInt(),
+                        )
+                    }
+                    .pointerInput(canvasWidthPx, canvasHeightPx) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            collapsedTopBarOffsetX = (collapsedTopBarOffsetX + dragAmount.x)
+                                .coerceIn(-canvasWidthPx * 0.72f, canvasWidthPx * 0.05f)
+                            collapsedTopBarOffsetY = (collapsedTopBarOffsetY + dragAmount.y)
+                                .coerceIn(-canvasHeightPx * 0.04f, canvasHeightPx * 0.82f)
+                        }
+                    },
                 shape = RoundedCornerShape(50),
                 color = Color.White.copy(alpha = 0.92f),
                 shadowElevation = 6.dp,
@@ -662,14 +681,29 @@ fun SplashDiyFullEditorModal(
             }
         }
 
-        // 底部手帐工具台：支持一键收起成右下角迷你悬浮按钮，完全露出下半区供绵绵自由排版
+        // 底部手帐工具台：支持一键收起成可全屏自由拖动的迷你悬浮胶囊，完全露出下半区供绵绵自由排版
         if (isPanelCollapsed) {
             Surface(
                 onClick = { isPanelCollapsed = false },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .navigationBarsPadding()
-                    .padding(end = 16.dp, bottom = 16.dp),
+                    .padding(end = 16.dp, bottom = 16.dp)
+                    .offset {
+                        IntOffset(
+                            collapsedToolbarOffsetX.roundToInt(),
+                            collapsedToolbarOffsetY.roundToInt(),
+                        )
+                    }
+                    .pointerInput(canvasWidthPx, canvasHeightPx) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            collapsedToolbarOffsetX = (collapsedToolbarOffsetX + dragAmount.x)
+                                .coerceIn(-canvasWidthPx * 0.76f, canvasWidthPx * 0.06f)
+                            collapsedToolbarOffsetY = (collapsedToolbarOffsetY + dragAmount.y)
+                                .coerceIn(-canvasHeightPx * 0.84f, canvasHeightPx * 0.05f)
+                        }
+                    },
                 shape = RoundedCornerShape(50),
                 color = palette.primary,
                 shadowElevation = 8.dp,

@@ -801,21 +801,10 @@ fun ChatInput(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(20.dp))
-                            .then(
-                                if (useRealtimeBlur) Modifier.hazeEffect(
-                                    state = hazeState,
-                                    style = HazeMaterials.ultraThin()
-                                )
-                                else Modifier
-                            ),
-                        shape = RoundedCornerShape(20.dp),
+                            .clip(RoundedCornerShape(22.dp)),
+                        shape = RoundedCornerShape(22.dp),
                         tonalElevation = 0.dp,
-                        color = if (useRealtimeBlur) {
-                            Color.Transparent
-                        } else {
-                            popupContainerColor(hazeTintColor)
-                        },
+                        color = Color.Transparent,
                     ) {
                         FilesPicker(
                             conversation = conversation,

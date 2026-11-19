@@ -60,6 +60,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import me.rerere.rikkahub.ui.components.ui.Switch
 import me.rerere.rikkahub.ui.components.ui.SwitchSize
 import androidx.compose.material3.Tab
@@ -252,24 +253,26 @@ private fun McpServerItem(
     SwipeToDismissBox(
         state = dismissBoxState,
         backgroundContent = {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            ) {
-                FilledTonalIconButton(
-                    onClick = {
-                        scope.launch { dismissBoxState.reset() }
-                    }
+            if (dismissBoxState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 ) {
-                    Icon(HugeIcons.Cancel01, null)
-                }
-                FilledTonalIconButton(
-                    onClick = {
-                        onDelete()
+                    FilledTonalIconButton(
+                        onClick = {
+                            scope.launch { dismissBoxState.reset() }
+                        }
+                    ) {
+                        Icon(HugeIcons.Cancel01, null)
                     }
-                ) {
-                    Icon(HugeIcons.Delete01, null)
+                    FilledTonalIconButton(
+                        onClick = {
+                            onDelete()
+                        }
+                    ) {
+                        Icon(HugeIcons.Delete01, null)
+                    }
                 }
             }
         },

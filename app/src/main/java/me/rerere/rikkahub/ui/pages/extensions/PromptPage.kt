@@ -66,6 +66,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -335,23 +336,25 @@ private fun ModeInjectionCard(
     SwipeToDismissBox(
         state = swipeState,
         backgroundContent = {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { scope.launch { swipeState.reset() } }) {
-                    Icon(HugeIcons.Cancel01, null)
-                }
-                FilledIconButton(onClick = {
-                    scope.launch {
-                        onDelete()
-                        swipeState.reset()
+            if (swipeState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { scope.launch { swipeState.reset() } }) {
+                        Icon(HugeIcons.Cancel01, null)
                     }
-                }) {
-                    Icon(HugeIcons.Delete01, stringResource(R.string.prompt_page_delete))
+                    FilledIconButton(onClick = {
+                        scope.launch {
+                            onDelete()
+                            swipeState.reset()
+                        }
+                    }) {
+                        Icon(HugeIcons.Delete01, stringResource(R.string.prompt_page_delete))
+                    }
                 }
             }
         },
@@ -367,7 +370,7 @@ private fun ModeInjectionCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(
@@ -401,6 +404,13 @@ private fun ModeInjectionCard(
                 }
                 IconButton(onClick = onEdit) {
                     Icon(HugeIcons.Tools, stringResource(R.string.prompt_page_edit))
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        HugeIcons.Delete01,
+                        contentDescription = stringResource(R.string.prompt_page_delete),
+                        tint = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
         }
@@ -747,23 +757,25 @@ private fun LorebookCard(
     SwipeToDismissBox(
         state = swipeState,
         backgroundContent = {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = { scope.launch { swipeState.reset() } }) {
-                    Icon(HugeIcons.Cancel01, null)
-                }
-                FilledIconButton(onClick = {
-                    scope.launch {
-                        onDelete()
-                        swipeState.reset()
+            if (swipeState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { scope.launch { swipeState.reset() } }) {
+                        Icon(HugeIcons.Cancel01, null)
                     }
-                }) {
-                    Icon(HugeIcons.Delete01, stringResource(R.string.prompt_page_delete))
+                    FilledIconButton(onClick = {
+                        scope.launch {
+                            onDelete()
+                            swipeState.reset()
+                        }
+                    }) {
+                        Icon(HugeIcons.Delete01, stringResource(R.string.prompt_page_delete))
+                    }
                 }
             }
         },
@@ -779,7 +791,7 @@ private fun LorebookCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(
@@ -824,6 +836,13 @@ private fun LorebookCard(
                 }
                 IconButton(onClick = onEdit) {
                     Icon(HugeIcons.Tools, stringResource(R.string.prompt_page_edit))
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        HugeIcons.Delete01,
+                        contentDescription = stringResource(R.string.prompt_page_delete),
+                        tint = MaterialTheme.colorScheme.error,
+                    )
                 }
             }
         }
