@@ -22,6 +22,10 @@ import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.S3Sync
+import me.rerere.rikkahub.data.sync.OurHomeBackupModule
+import me.rerere.rikkahub.data.sync.OurHomeBackupSummary
+import me.rerere.rikkahub.data.sync.OurHomeModuleBackupManager
+import me.rerere.rikkahub.data.sync.OurHomeRestoreResult
 import me.rerere.rikkahub.utils.UiState
 import java.io.File
 
@@ -32,6 +36,7 @@ class BackupVM(
     private val webDavSync: WebDavSync,
     private val s3Sync: S3Sync,
     private val conversationRepository: ConversationRepository,
+    private val ourHomeModuleBackupManager: OurHomeModuleBackupManager,
 ) : ViewModel() {
     val settings = settingsStore.settingsFlow.stateIn(
         scope = viewModelScope,
@@ -41,10 +46,35 @@ class BackupVM(
 
     val webDavBackupItems = MutableStateFlow<UiState<List<WebDavBackupItem>>>(UiState.Idle)
     val s3BackupItems = MutableStateFlow<UiState<List<S3BackupItem>>>(UiState.Idle)
+    val ourHomeBackupSummary = MutableStateFlow<OurHomeBackupSummary?>(null)
 
     init {
         loadBackupFileItems()
         loadS3BackupFileItems()
+        refreshOurHomeBackupSummary()
+    }
+
+    fun refreshOurHomeBackupSummary() {
+        viewModelScope.launch {
+            runCatching {
+                ourHomeBackupSummary.emit(ourHomeModuleBackupManager.getLocalDataSummary())
+            }
+        }
+    }
+
+    suspend fun exportOurHomeModulesToFile(
+        selectedModules: Set<OurHomeBackupModule>,
+    ): File {
+        val file = ourHomeModuleBackupManager.prepareModulesBackupZip(selectedModules)
+        recordBackupTime()
+        return file
+    }
+
+    suspend fun restoreOurHomeModulesFromLocalFile(
+        file: File,
+        filterModules: Set<OurHomeBackupModule>? = null,
+    ): OurHomeRestoreResult {
+        return ourHomeModuleBackupManager.restoreModulesFromZip(file, filterModules)
     }
 
     fun updateSettings(settings: Settings) {

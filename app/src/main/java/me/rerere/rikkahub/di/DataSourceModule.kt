@@ -47,6 +47,7 @@ import me.rerere.rikkahub.data.service.MemoryBankService
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.search.SearchService
 import me.rerere.rikkahub.data.sync.S3Sync
+import me.rerere.rikkahub.data.sync.OurHomeModuleBackupManager
 import okhttp3.Dispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -292,6 +293,15 @@ val dataSourceModule = module {
             json = get(),
             context = get(),
             httpClient = get()
+        )
+    }
+
+    single {
+        OurHomeModuleBackupManager(
+            context = get(),
+            settingsStore = get(),
+            memoryRepository = get(),
+            json = get(),
         )
     }
 
