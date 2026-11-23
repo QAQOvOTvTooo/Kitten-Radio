@@ -6,17 +6,28 @@
 
 package me.rerere.rikkahub.ui.pages.setting
 
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import me.rerere.rikkahub.ui.theme.LargeFlexibleTopAppBar
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -24,6 +35,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,11 +50,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.io.File
+import kotlin.math.roundToInt
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ChatFontFamily
 import me.rerere.rikkahub.data.datastore.DisplaySetting
@@ -50,8 +68,45 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.ui.theme.buildCustomFileFontFamily
+import me.rerere.rikkahub.ui.theme.resolveChatFontFamily
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+
+private fun resolveUploadedFontFileName(context: Context, uri: Uri): String {
+    var rawName: String? = null
+    runCatching {
+        context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val idx = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (idx >= 0) rawName = cursor.getString(idx)
+            }
+        }
+    }
+    val fallback = "custom_font_${System.currentTimeMillis()}.ttf"
+    val cleaned = rawName?.trim()?.replace(Regex("""[\\/:*?"<>|]"""), "_").orEmpty()
+    if (cleaned.isBlank()) return fallback
+    val lower = cleaned.lowercase()
+    return if (lower.endsWith(".ttf") || lower.endsWith(".otf") || lower.endsWith(".ttc")) {
+        cleaned
+    } else {
+        "$cleaned.ttf"
+    }
+}
+
+private fun formatFontWeightLabel(weight: Int): String {
+    return when {
+        weight <= 150 -> "$weight · 极细 (Thin)"
+        weight <= 250 -> "$weight · 纤细 (ExtraLight)"
+        weight <= 350 -> "$weight · 细体 (Light)"
+        weight <= 450 -> "$weight · 标准 (Normal)"
+        weight <= 550 -> "$weight · 适中 (Medium)"
+        weight <= 650 -> "$weight · 半粗 (SemiBold)"
+        weight <= 750 -> "$weight · 加粗 (Bold)"
+        weight <= 850 -> "$weight · 特粗 (ExtraBold)"
+        else -> "$weight · 浓黑 (Black)"
+    }
+}
 
 @Composable
 fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
@@ -67,14 +122,30 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     val fontDir = remember { File(context.filesDir, "custom_fonts").apply { mkdirs() } }
+    var fontRefreshTick by remember { mutableStateOf(0) }
+    val savedFonts = remember(fontRefreshTick, displaySetting.customFontPath) {
+        val dirFiles = fontDir.listFiles()
+            ?.filter { it.isFile && it.length() > 0L }
+            ?.sortedByDescending { it.lastModified() }
+            .orEmpty()
+            .toMutableList()
+        val currentFile = displaySetting.customFontPath.takeIf { it.isNotBlank() }?.let { File(it) }
+        if (currentFile != null && currentFile.exists() && dirFiles.none { it.absolutePath == currentFile.absolutePath }) {
+            dirFiles.add(0, currentFile)
+        }
+        dirFiles
+    }
+
     val fontPickerLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let {
-            val destFile = File(fontDir, "custom_font_${System.currentTimeMillis()}.ttf")
+            val fileName = resolveUploadedFontFileName(context, it)
+            val destFile = File(fontDir, fileName)
             context.contentResolver.openInputStream(it)?.use { input ->
                 destFile.outputStream().use { output -> input.copyTo(output) }
             }
+            fontRefreshTick++
             updateDisplaySetting(
                 displaySetting.copy(
                     chatFontFamily = ChatFontFamily.CUSTOM,
@@ -219,6 +290,7 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                         ChatFontFamily.DEFAULT to stringResource(R.string.setting_display_page_chat_font_family_default),
                         ChatFontFamily.SERIF to stringResource(R.string.setting_display_page_chat_font_family_serif),
                         ChatFontFamily.MONOSPACE to stringResource(R.string.setting_display_page_chat_font_family_monospace),
+                        ChatFontFamily.CUSTOM to "自定义",
                     )
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_chat_font_family_title)) },
@@ -231,7 +303,18 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                                 chatFontFamilyOptions.forEachIndexed { index, (family, label) ->
                                     SegmentedButton(
                                         selected = displaySetting.chatFontFamily == family,
-                                        onClick = { updateDisplaySetting(displaySetting.copy(chatFontFamily = family)) },
+                                        onClick = {
+                                            if (family == ChatFontFamily.CUSTOM && displaySetting.customFontPath.isBlank() && savedFonts.isNotEmpty()) {
+                                                updateDisplaySetting(
+                                                    displaySetting.copy(
+                                                        chatFontFamily = ChatFontFamily.CUSTOM,
+                                                        customFontPath = savedFonts.first().absolutePath
+                                                    )
+                                                )
+                                            } else {
+                                                updateDisplaySetting(displaySetting.copy(chatFontFamily = family))
+                                            }
+                                        },
                                         shape = SegmentedButtonDefaults.itemShape(
                                             index,
                                             chatFontFamilyOptions.size
@@ -254,6 +337,17 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_font_size_title)) },
                         supportingContent = {
+                            val previewFontFamily = remember(
+                                displaySetting.chatFontFamily,
+                                displaySetting.customFontPath,
+                                displaySetting.chatFontWeight
+                            ) {
+                                resolveChatFontFamily(
+                                    chatFontFamily = displaySetting.chatFontFamily,
+                                    customFontPath = displaySetting.customFontPath,
+                                    weightVal = displaySetting.chatFontWeight,
+                                )
+                            }
                             Column {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -276,14 +370,55 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                                     style = LocalTextStyle.current.copy(
                                         fontSize = LocalTextStyle.current.fontSize * displaySetting.fontSizeRatio,
                                         lineHeight = LocalTextStyle.current.lineHeight * displaySetting.fontSizeRatio,
-                                        fontFamily = when (displaySetting.chatFontFamily) {
-                                            ChatFontFamily.DEFAULT -> FontFamily.Default
-                                            ChatFontFamily.SERIF -> FontFamily.Serif
-                                            ChatFontFamily.MONOSPACE -> FontFamily.Monospace
-                                            ChatFontFamily.CUSTOM -> FontFamily.Default
-                                        }
+                                        fontWeight = FontWeight(displaySetting.chatFontWeight.coerceIn(100, 900)),
+                                        fontFamily = previewFontFamily,
                                     )
                                 )
+                            }
+                        }
+                    )
+                    item(
+                        headlineContent = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text("字体粗细")
+                                if (displaySetting.chatFontWeight != 400) {
+                                    TextButton(
+                                        onClick = { updateDisplaySetting(displaySetting.copy(chatFontWeight = 400)) },
+                                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                    ) {
+                                        Text("恢复标准(400)", style = MaterialTheme.typography.labelSmall)
+                                    }
+                                }
+                            }
+                        },
+                        supportingContent = {
+                            Column {
+                                Text(
+                                    text = "当前字重：${formatFontWeightLabel(displaySetting.chatFontWeight)}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Slider(
+                                        value = displaySetting.chatFontWeight.toFloat(),
+                                        onValueChange = {
+                                            val stepped = ((it / 50f).roundToInt() * 50).coerceIn(100, 900)
+                                            updateDisplaySetting(displaySetting.copy(chatFontWeight = stepped))
+                                        },
+                                        valueRange = 100f..900f,
+                                        steps = 15,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(text = "${displaySetting.chatFontWeight}")
+                                }
                             }
                         }
                     )
@@ -311,53 +446,166 @@ fun SettingDisplayMessagePage(vm: SettingVM = koinViewModel()) {
                 }
             }
 
-            // 自定义字体
+            // 本地多字体书架（支持保存多个自定义字体、随时点击切换与单独删除）
             item {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text("自定义字体") },
+                    title = { Text("我的本地字体库（支持多字体切换）") },
                 ) {
                     item(
-                        headlineContent = { Text("导入自定义字体") },
+                        headlineContent = { Text("导入自定义字体到本地库") },
                         supportingContent = {
                             Text(
-                                if (displaySetting.customFontPath.isNotBlank() && File(displaySetting.customFontPath).exists())
-                                    "当前字体: ${File(displaySetting.customFontPath).name}"
-                                else "支持 .ttf / .otf 字体文件"
+                                if (savedFonts.isEmpty()) "支持 .ttf / .otf / .ttc 字体文件，导入后会永久保存在本地供随时切换"
+                                else "本地已收藏 ${savedFonts.size} 款字体 · 点击下方任意字体即可立即切换"
                             )
                         },
                         trailingContent = {
-                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                if (displaySetting.customFontPath.isNotBlank()) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                if (displaySetting.chatFontFamily == ChatFontFamily.CUSTOM) {
                                     TextButton(onClick = {
-                                        File(displaySetting.customFontPath).delete()
                                         updateDisplaySetting(
-                                            displaySetting.copy(
-                                                customFontPath = "",
-                                                chatFontFamily = ChatFontFamily.DEFAULT
-                                            )
+                                            displaySetting.copy(chatFontFamily = ChatFontFamily.DEFAULT)
                                         )
-                                    }) { Text("清除") }
+                                    }) { Text("切回默认") }
                                 }
-                                TextButton(onClick = {
-                                    fontPickerLauncher.launch(arrayOf("*/*"))
-                                }) { Text("选择字体") }
+                                FilledTonalButton(
+                                    onClick = { fontPickerLauncher.launch(arrayOf("*/*")) },
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                ) {
+                                    Icon(HugeIcons.Add01, contentDescription = null, modifier = Modifier.size(15.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("添加字体", style = MaterialTheme.typography.labelMedium)
+                                }
                             }
                         },
                     )
-                    if (displaySetting.customFontPath.isNotBlank() && File(displaySetting.customFontPath).exists()) {
+
+                    if (savedFonts.isNotEmpty()) {
                         item(
-                            headlineContent = { Text("字体预览") },
+                            headlineContent = { Text("已保存的本地字体（点击卡片即刻切换）") },
                             supportingContent = {
-                                val customFont = remember(displaySetting.customFontPath) {
-                                    runCatching { FontFamily(Font(File(displaySetting.customFontPath))) }
-                                        .getOrDefault(FontFamily.Default)
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    savedFonts.forEach { fontFile ->
+                                        val isCurrent = displaySetting.chatFontFamily == ChatFontFamily.CUSTOM &&
+                                            displaySetting.customFontPath == fontFile.absolutePath
+                                        val itemFontFamily = remember(fontFile.absolutePath, displaySetting.chatFontWeight) {
+                                            buildCustomFileFontFamily(fontFile, displaySetting.chatFontWeight)
+                                        }
+                                        val displayName = remember(fontFile.name) {
+                                            fontFile.nameWithoutExtension.removePrefix("custom_font_")
+                                        }
+                                        Surface(
+                                            onClick = {
+                                                updateDisplaySetting(
+                                                    displaySetting.copy(
+                                                        chatFontFamily = ChatFontFamily.CUSTOM,
+                                                        customFontPath = fontFile.absolutePath,
+                                                    )
+                                                )
+                                            },
+                                            shape = MaterialTheme.shapes.medium,
+                                            color = if (isCurrent) {
+                                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+                                            } else {
+                                                MaterialTheme.colorScheme.surfaceContainerLow
+                                            },
+                                            border = BorderStroke(
+                                                width = if (isCurrent) 1.5.dp else 1.dp,
+                                                color = if (isCurrent) {
+                                                    MaterialTheme.colorScheme.primary
+                                                } else {
+                                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                                                }
+                                            ),
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                    ) {
+                                                        Text(
+                                                            text = displayName,
+                                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                        )
+                                                        if (isCurrent) {
+                                                            Surface(
+                                                                shape = MaterialTheme.shapes.small,
+                                                                color = MaterialTheme.colorScheme.primary,
+                                                            ) {
+                                                                Text(
+                                                                    text = "使用中",
+                                                                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                                                    color = MaterialTheme.colorScheme.onPrimary,
+                                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Text(
+                                                        text = "绵绵 & 蔺鹤 ♡ 永远在一起 The quick brown fox 123456",
+                                                        fontFamily = itemFontFamily,
+                                                        fontWeight = FontWeight(displaySetting.chatFontWeight.coerceIn(100, 900)),
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                    )
+                                                }
+                                                IconButton(
+                                                    onClick = {
+                                                        val deletingPath = fontFile.absolutePath
+                                                        runCatching { fontFile.delete() }
+                                                        fontRefreshTick++
+                                                        if (displaySetting.customFontPath == deletingPath) {
+                                                            val remaining = fontDir.listFiles()
+                                                                ?.filter { it.isFile && it.length() > 0L && it.absolutePath != deletingPath }
+                                                                ?.sortedByDescending { it.lastModified() }
+                                                                .orEmpty()
+                                                            if (remaining.isNotEmpty()) {
+                                                                updateDisplaySetting(
+                                                                    displaySetting.copy(
+                                                                        customFontPath = remaining.first().absolutePath
+                                                                    )
+                                                                )
+                                                            } else {
+                                                                updateDisplaySetting(
+                                                                    displaySetting.copy(
+                                                                        customFontPath = "",
+                                                                        chatFontFamily = ChatFontFamily.DEFAULT,
+                                                                    )
+                                                                )
+                                                            }
+                                                        }
+                                                    },
+                                                    modifier = Modifier.size(32.dp),
+                                                ) {
+                                                    Icon(
+                                                        imageVector = HugeIcons.Delete01,
+                                                        contentDescription = "删除字体",
+                                                        tint = MaterialTheme.colorScheme.error,
+                                                        modifier = Modifier.size(18.dp),
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                                Text(
-                                    text = "The quick brown fox jumps over the lazy dog. 你好世界！1234567890",
-                                    fontFamily = customFont,
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
                             }
                         )
                     }

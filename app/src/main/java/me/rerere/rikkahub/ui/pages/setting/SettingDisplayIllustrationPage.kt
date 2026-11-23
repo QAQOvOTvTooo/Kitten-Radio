@@ -336,7 +336,7 @@ fun SettingDisplayIllustrationPage(vm: SettingVM = koinViewModel()) {
                                     onValueChange = {
                                         updateDisplaySetting(displaySetting.copy(bubbleCornerRadius = it))
                                     },
-                                    valueRange = 0f..32f,
+                                    valueRange = 0f..45f,
                                     modifier = Modifier.weight(1f)
                                 )
                                 Text(text = "${displaySetting.bubbleCornerRadius.toInt()}")

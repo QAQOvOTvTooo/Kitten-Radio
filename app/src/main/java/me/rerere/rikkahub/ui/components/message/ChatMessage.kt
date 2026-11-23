@@ -272,23 +272,20 @@ fun ChatMessage(
         return
     }
     val settings = LocalDisplaySettings.current
+    val resolvedFontWeight = androidx.compose.ui.text.font.FontWeight(settings.chatFontWeight.coerceIn(100, 900))
+    val resolvedFontFamily = remember(settings.chatFontFamily, settings.customFontPath, settings.chatFontWeight) {
+        me.rerere.rikkahub.ui.theme.resolveChatFontFamily(
+            chatFontFamily = settings.chatFontFamily,
+            customFontPath = settings.customFontPath,
+            weightVal = settings.chatFontWeight,
+        )
+    }
     val textStyle = LocalTextStyle.current.copy(
         fontSize = LocalTextStyle.current.fontSize * settings.fontSizeRatio,
         color = settings.chatTextColor?.let { it.toComposeColor() } ?: Color.Unspecified,
         lineHeight = LocalTextStyle.current.lineHeight * settings.fontSizeRatio,
-        fontFamily = when (settings.chatFontFamily) {
-            ChatFontFamily.DEFAULT -> FontFamily.Default
-            ChatFontFamily.SERIF -> FontFamily.Serif
-            ChatFontFamily.MONOSPACE -> FontFamily.Monospace
-            ChatFontFamily.CUSTOM -> {
-                val fontPath = settings.customFontPath
-                if (fontPath.isNotBlank() && java.io.File(fontPath).exists()) {
-                    FontFamily(Font(java.io.File(fontPath)))
-                } else {
-                    FontFamily.Default
-                }
-            }
-        }
+        fontWeight = resolvedFontWeight,
+        fontFamily = resolvedFontFamily,
     )
     var showActionsSheet by remember { mutableStateOf(false) }
     var showSelectCopySheet by remember { mutableStateOf(false) }

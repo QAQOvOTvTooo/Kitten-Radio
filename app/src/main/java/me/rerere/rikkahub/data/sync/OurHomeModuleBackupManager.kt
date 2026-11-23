@@ -88,6 +88,7 @@ data class SharedPrefEntryDump(
 @Serializable
 data class OurHomeDecorDisplaySubset(
     val customFontPath: String = "",
+    val chatFontWeight: Int = 400,
     val settingsBackgroundPath: String = "",
     val inputBackgroundPath: String = "",
     val userAvatarFramePath: String = "",
@@ -663,6 +664,7 @@ class OurHomeModuleBackupManager(
 
     private fun DisplaySetting.toDecorSubset() = OurHomeDecorDisplaySubset(
         customFontPath = customFontPath,
+        chatFontWeight = chatFontWeight,
         settingsBackgroundPath = settingsBackgroundPath,
         inputBackgroundPath = inputBackgroundPath,
         userAvatarFramePath = userAvatarFramePath,
@@ -693,6 +695,7 @@ class OurHomeModuleBackupManager(
 
     private fun DisplaySetting.applyDecorSubset(sub: OurHomeDecorDisplaySubset) = copy(
         customFontPath = sub.customFontPath.ifBlank { customFontPath },
+        chatFontWeight = sub.chatFontWeight,
         settingsBackgroundPath = sub.settingsBackgroundPath.ifBlank { settingsBackgroundPath },
         inputBackgroundPath = sub.inputBackgroundPath.ifBlank { inputBackgroundPath },
         userAvatarFramePath = sub.userAvatarFramePath.ifBlank { userAvatarFramePath },

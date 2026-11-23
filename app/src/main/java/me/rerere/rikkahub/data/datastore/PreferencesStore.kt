@@ -852,8 +852,9 @@ data class DisplaySetting(
     val volumeKeyScrollRatio: Float = 1.0f,
     val chatBubbleTransparency: Float = 0f,
     val thinkingChainTransparency: Float = 0f,
-    // 自定义字体
+    // 自定义字体 & 字体粗细 (100..900, 默认 400 标准)
     val customFontPath: String = "",
+    val chatFontWeight: Int = 400,
     // 设置页自定义背景
     val settingsBackgroundPath: String = "",
     // 输入框自定义背景

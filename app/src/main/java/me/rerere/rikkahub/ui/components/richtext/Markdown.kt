@@ -448,7 +448,9 @@ private fun MarkdownNode(
         }
 
         MarkdownElementTypes.STRONG -> {
-            ProvideTextStyle(TextStyle(fontWeight = FontWeight.SemiBold)) {
+            val baseWeight = LocalTextStyle.current.fontWeight?.weight ?: 400
+            val strongWeight = FontWeight((baseWeight + 250).coerceIn(600, 900))
+            ProvideTextStyle(TextStyle(fontWeight = strongWeight)) {
                 node.children.fastForEach { child ->
                     MarkdownNode(
                         node = child, content = content, modifier = modifier, onClickCitation = onClickCitation
@@ -891,7 +893,9 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
         }
 
         node.type == MarkdownElementTypes.STRONG -> {
-            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+            val baseWeight = style.fontWeight?.weight ?: 400
+            val strongWeight = FontWeight((baseWeight + 250).coerceIn(600, 900))
+            withStyle(SpanStyle(fontWeight = strongWeight)) {
                 node.children.trim(MarkdownTokenTypes.EMPH, 2).fastForEach {
                     appendMarkdownNodeContent(
                         node = it,

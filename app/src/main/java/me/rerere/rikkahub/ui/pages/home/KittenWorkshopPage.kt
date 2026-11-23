@@ -34,6 +34,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -80,10 +81,16 @@ import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.theme.ActiveCustomBackgroundHex
+import me.rerere.rikkahub.ui.theme.ActiveCustomPrimaryHex
+import me.rerere.rikkahub.ui.theme.ActiveCustomSecondaryHex
 import me.rerere.rikkahub.ui.theme.KittenPalettes
 import me.rerere.rikkahub.ui.theme.KittenPaletteSpec
+import me.rerere.rikkahub.ui.theme.buildCustomKittenPalette
+import me.rerere.rikkahub.ui.theme.colorToKittenHex
 import me.rerere.rikkahub.ui.theme.findKittenPalette
 import me.rerere.rikkahub.ui.theme.kittenGridBackground
+import me.rerere.rikkahub.ui.theme.parseKittenHexColor
 import me.rerere.rikkahub.utils.JsonInstant
 import org.koin.compose.koinInject
 import java.io.File
@@ -100,8 +107,11 @@ data class KittenWorkshopPreset(
     val author: String = "绵绵 & 蔺鹤",
     val description: String = "我们共同打磨的云朵星蝶珠链、歌单侧边栏与下午茶甜品菜单原版守护方案",
     val isBuiltIn: Boolean = true,
-    // 1. 主题色盘
+    // 1. 主题色盘（支持内置莫兰迪色盘与每个方案独立的 custom 自定义三原色）
     val paletteId: String = "pink_grey",
+    val customPrimaryHex: String = "#F29CB8",
+    val customSecondaryHex: String = "#7E7894",
+    val customBackgroundHex: String = "#FDF9FA",
     val enableAssetTint: Boolean = true,
     val enableGridBackground: Boolean = true,
     // 2. 聊天气泡与字体外观
@@ -111,7 +121,7 @@ data class KittenWorkshopPreset(
     val assistantBubbleTextHex: String = "",
     val bubbleBorderHex: String = "",
     val bubbleBorderWidthDp: Float = 0f,
-    val bubbleCornerRadiusDp: Int = 18,
+    val bubbleCornerRadiusDp: Int = 32,
     val userBubbleImagePath: String = "",
     val assistantBubbleImagePath: String = "",
     // 3. 思维链（CoT 情书卡片与展开信纸/便签/磁带底图）外观
@@ -142,6 +152,18 @@ data class KittenWorkshopPreset(
     // 6. 酒馆级自定义 CSS 样式表
     val customCss: String = DEFAULT_WORKSHOP_CSS_TEMPLATE,
 )
+
+private fun resolvePresetPalette(preset: KittenWorkshopPreset): KittenPaletteSpec {
+    return if (preset.paletteId == "custom") {
+        buildCustomKittenPalette(
+            primaryHex = preset.customPrimaryHex,
+            secondaryHex = preset.customSecondaryHex,
+            backgroundHex = preset.customBackgroundHex,
+        )
+    } else {
+        findKittenPalette(preset.paletteId)
+    }
+}
 
 private const val DEFAULT_WORKSHOP_CSS_TEMPLATE = """/* ✦ 小猫电台 · 酒馆级 CSS 实时美化样式表 ✦ */
 .user-bubble {
@@ -404,11 +426,20 @@ fun KittenWorkshopPage() {
                 ).toLong() and 0xFFFFFFFFL
             }
 
+        if (preset.paletteId == "custom") {
+            ActiveCustomPrimaryHex = preset.customPrimaryHex
+            ActiveCustomSecondaryHex = preset.customSecondaryHex
+            ActiveCustomBackgroundHex = preset.customBackgroundHex
+        }
+
         scope.launch {
             settingsStore.update(
                 settings.copy(
                     ourHomeSetting = settings.ourHomeSetting.copy(
                         kittenPaletteId = preset.paletteId,
+                        customPrimaryHex = if (preset.paletteId == "custom") preset.customPrimaryHex else settings.ourHomeSetting.customPrimaryHex,
+                        customSecondaryHex = if (preset.paletteId == "custom") preset.customSecondaryHex else settings.ourHomeSetting.customSecondaryHex,
+                        customBackgroundHex = if (preset.paletteId == "custom") preset.customBackgroundHex else settings.ourHomeSetting.customBackgroundHex,
                         enableAssetTint = preset.enableAssetTint,
                         enableGridBackground = preset.enableGridBackground,
                         customCss = preset.customCss,
@@ -445,7 +476,7 @@ fun KittenWorkshopPage() {
         }
     }
 
-    val palette = findKittenPalette(workingPreset.paletteId)
+    val palette = resolvePresetPalette(workingPreset)
 
     Scaffold(
         topBar = {
@@ -554,7 +585,16 @@ fun KittenWorkshopPage() {
                             onChangePalette = { newPaletteId ->
                                 val updated = workingPreset.copy(paletteId = newPaletteId)
                                 applyPresetToGlobalSettings(updated)
-                            }
+                            },
+                            onUpdateCustomPalette = { pHex, sHex, bgHex ->
+                                val updated = workingPreset.copy(
+                                    paletteId = "custom",
+                                    customPrimaryHex = pHex,
+                                    customSecondaryHex = sHex,
+                                    customBackgroundHex = bgHex,
+                                )
+                                applyPresetToGlobalSettings(updated)
+                            },
                         )
                     }
 
@@ -597,15 +637,25 @@ fun KittenWorkshopPage() {
         }
     }
 
-    // 新建/另存为专属美化方案弹窗
+    // 新建/另存为专属美化方案弹窗（支持直接选择内置色盘或自由调配自定义主题色）
     if (showCreatePresetDialog) {
         var name by remember { mutableStateOf("${workingPreset.name} · 绵绵定制") }
         var desc by remember { mutableStateOf("绵绵亲手调配的专属小家美化方案 ♡") }
+        var dlgPaletteId by remember { mutableStateOf(workingPreset.paletteId) }
+        var dlgPrimaryHex by remember { mutableStateOf(workingPreset.customPrimaryHex) }
+        var dlgSecondaryHex by remember { mutableStateOf(workingPreset.customSecondaryHex) }
+        var dlgBackgroundHex by remember { mutableStateOf(workingPreset.customBackgroundHex) }
+
         AlertDialog(
             onDismissRequest = { showCreatePresetDialog = false },
             title = { Text("保存为我的美化方案") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
@@ -619,6 +669,50 @@ fun KittenWorkshopPage() {
                         label = { Text("方案备注 / 心情描述") },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    Text(
+                        text = "✦ 方案主题色盘（可自定义颜色）",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = palette.textPrimary,
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        val customPreviewSpec = buildCustomKittenPalette(
+                            primaryHex = dlgPrimaryHex,
+                            secondaryHex = dlgSecondaryHex,
+                            backgroundHex = dlgBackgroundHex,
+                        )
+                        (KittenPalettes + customPreviewSpec).forEach { p ->
+                            val selected = dlgPaletteId == p.id
+                            FilterChip(
+                                selected = selected,
+                                onClick = { dlgPaletteId = p.id },
+                                leadingIcon = {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(12.dp)
+                                            .background(p.primary, CircleShape)
+                                    )
+                                },
+                                label = { Text(p.title, maxLines = 1, style = MaterialTheme.typography.labelSmall) },
+                            )
+                        }
+                    }
+                    if (dlgPaletteId == "custom") {
+                        WorkshopCustomPaletteStudio(
+                            primaryHex = dlgPrimaryHex,
+                            secondaryHex = dlgSecondaryHex,
+                            backgroundHex = dlgBackgroundHex,
+                            onUpdateColors = { pHex, sHex, bgHex ->
+                                dlgPrimaryHex = pHex
+                                dlgSecondaryHex = sHex
+                                dlgBackgroundHex = bgHex
+                            },
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -630,6 +724,10 @@ fun KittenWorkshopPage() {
                             author = "绵绵",
                             description = desc,
                             isBuiltIn = false,
+                            paletteId = dlgPaletteId,
+                            customPrimaryHex = dlgPrimaryHex,
+                            customSecondaryHex = dlgSecondaryHex,
+                            customBackgroundHex = dlgBackgroundHex,
                         )
                         val newList = customPresets + newPreset
                         saveCustomPresets(newList, newPreset.id)
@@ -984,6 +1082,7 @@ private fun PresetsBookshelfSection(
     onCreateNew: () -> Unit,
     onDeleteCustom: (KittenWorkshopPreset) -> Unit,
     onChangePalette: (String) -> Unit,
+    onUpdateCustomPalette: (String, String, String) -> Unit,
 ) {
     // 1. 方案书架卡片区
     Card(
@@ -1024,7 +1123,7 @@ private fun PresetsBookshelfSection(
 
             allPresets.forEach { item ->
                 val isSelected = item.id == activePresetId
-                val itemPalette = findKittenPalette(item.paletteId)
+                val itemPalette = resolvePresetPalette(item)
                 Surface(
                     onClick = { onSelectPreset(item) },
                     shape = RoundedCornerShape(16.dp),
@@ -1113,7 +1212,7 @@ private fun PresetsBookshelfSection(
         }
     }
 
-    // 2. 当前方案主题色盘快速切换
+    // 2. 当前方案主题色盘快速切换（5款莫兰迪内置 + ✦ 自由自定义调色工作台）
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -1124,9 +1223,14 @@ private fun PresetsBookshelfSection(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                text = "✦ 方案绑定主题色盘（6色莫兰迪调色板）",
+                text = "✦ 方案绑定主题色盘（内置莫兰迪 & 自由自定义颜色）",
                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.ExtraBold),
                 color = palette.textPrimary,
+            )
+            val customSpec = buildCustomKittenPalette(
+                primaryHex = workingPreset.customPrimaryHex,
+                secondaryHex = workingPreset.customSecondaryHex,
+                backgroundHex = workingPreset.customBackgroundHex,
             )
             Row(
                 modifier = Modifier
@@ -1134,7 +1238,7 @@ private fun PresetsBookshelfSection(
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                KittenPalettes.forEach { p ->
+                (KittenPalettes + customSpec).forEach { p ->
                     val chosen = workingPreset.paletteId == p.id
                     Surface(
                         onClick = { onChangePalette(p.id) },
@@ -1160,6 +1264,235 @@ private fun PresetsBookshelfSection(
                             )
                         }
                     }
+                }
+            }
+
+            AnimatedVisibility(visible = workingPreset.paletteId == "custom") {
+                WorkshopCustomPaletteStudio(
+                    primaryHex = workingPreset.customPrimaryHex,
+                    secondaryHex = workingPreset.customSecondaryHex,
+                    backgroundHex = workingPreset.customBackgroundHex,
+                    onUpdateColors = onUpdateCustomPalette,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkshopCustomPaletteStudio(
+    primaryHex: String,
+    secondaryHex: String,
+    backgroundHex: String,
+    onUpdateColors: (String, String, String) -> Unit,
+) {
+    var activeChannel by remember { mutableStateOf(0) } // 0=主色, 1=副色, 2=底纸色
+    val currentHex = when (activeChannel) {
+        0 -> primaryHex
+        1 -> secondaryHex
+        else -> backgroundHex
+    }
+    val currentColor = parseKittenHexColor(
+        currentHex,
+        if (activeChannel == 0) Color(0xFFF29CB8) else if (activeChannel == 1) Color(0xFF7E7894) else Color(0xFFFDF9FA)
+    )
+    var hexInput by remember(activeChannel, currentHex) { mutableStateOf(currentHex) }
+
+    fun updateActiveChannelColor(c: Color) {
+        val hex = colorToKittenHex(c)
+        hexInput = hex
+        when (activeChannel) {
+            0 -> onUpdateColors(hex, secondaryHex, backgroundHex)
+            1 -> onUpdateColors(primaryHex, hex, backgroundHex)
+            else -> onUpdateColors(primaryHex, secondaryHex, hex)
+        }
+    }
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.75f),
+        border = BorderStroke(1.dp, parseKittenHexColor(primaryHex, Color(0xFFF29CB8)).copy(alpha = 0.4f)),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(9.dp),
+        ) {
+            Text(
+                text = "✦ 绵绵的方案专属调色台（主色 / 副色 / 手帐底纸自由调配）",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                color = parseKittenHexColor(primaryHex, Color(0xFFF29CB8)),
+            )
+
+            // 1. 灵感配色配方一键载入
+            val inspirationPresets = listOf(
+                Triple("蜜桃乌龙", "#F29CB8", "#7E7894") to "#FDF9FA",
+                Triple("樱花抹茶", "#E898AC", "#6E8B74") to "#FBFDF9",
+                Triple("焦糖奶茶", "#D98A6C", "#7A655C") to "#FDFBF7",
+                Triple("星夜玫瑰", "#E07A88", "#655A7C") to "#FAF7FB",
+                Triple("海盐奶黄", "#E5B567", "#6C7D8C") to "#FDFBF5",
+                Triple("黑巧树莓", "#D46A84", "#4A4453") to "#F9F5F7",
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                inspirationPresets.forEach { (triple, bgHex) ->
+                    val (label, pHex, sHex) = triple
+                    Surface(
+                        onClick = { onUpdateColors(pHex, sHex, bgHex) },
+                        shape = RoundedCornerShape(50),
+                        color = parseKittenHexColor(pHex, Color(0xFFF29CB8)).copy(alpha = 0.18f),
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .background(parseKittenHexColor(pHex, Color(0xFFF29CB8)), CircleShape)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .background(parseKittenHexColor(sHex, Color.Gray), CircleShape)
+                            )
+                            Text(label, style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
+
+            // 2. 选择要调配的部位：主色调 / 副色调 / 手帐底纸色
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                val tabLabels = listOf(
+                    "主色(粉区)" to primaryHex,
+                    "副色(顶栏)" to secondaryHex,
+                    "手帐底纸" to backgroundHex,
+                )
+                tabLabels.forEachIndexed { idx, (label, hex) ->
+                    FilterChip(
+                        selected = activeChannel == idx,
+                        onClick = { activeChannel = idx },
+                        leadingIcon = {
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .background(parseKittenHexColor(hex, Color.White), CircleShape)
+                                    .border(1.dp, Color.Gray.copy(alpha = 0.4f), CircleShape)
+                            )
+                        },
+                        label = { Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1) },
+                    )
+                }
+            }
+
+            // 3. 精选快捷色卡小圆点
+            val swatches = when (activeChannel) {
+                0 -> listOf("#F29CB8", "#E6859E", "#D97B93", "#C89EC4", "#A799D6", "#8FB4D9", "#8EC2B0", "#A3C69C", "#E8B478", "#E08E79")
+                1 -> listOf("#7E7894", "#8E7A86", "#6B728E", "#5C6B73", "#6E827A", "#7A6A63", "#524D5C", "#8C8589", "#697096", "#4A4453")
+                else -> listOf("#FDF9FA", "#FAF6F8", "#F7F5FB", "#F4F7FA", "#F5F9F6", "#FDFBF6", "#F9F4F5", "#F2EEF5", "#EEF3F7", "#FFFFFF")
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                swatches.forEach { swHex ->
+                    val swColor = parseKittenHexColor(swHex, Color.White)
+                    val isCur = currentHex.equals(swHex, ignoreCase = true)
+                    Box(
+                        modifier = Modifier
+                            .size(if (isCur) 26.dp else 22.dp)
+                            .background(swColor, CircleShape)
+                            .border(
+                                width = if (isCur) 2.dp else 1.dp,
+                                color = if (isCur) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.35f),
+                                shape = CircleShape,
+                            )
+                            .clickable { updateActiveChannelColor(swColor) }
+                    )
+                }
+            }
+
+            // 4. R / G / B 无级调色滑条
+            val rInt = (currentColor.red * 255).roundToInt().coerceIn(0, 255)
+            val gInt = (currentColor.green * 255).roundToInt().coerceIn(0, 255)
+            val bInt = (currentColor.blue * 255).roundToInt().coerceIn(0, 255)
+
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("R $rInt", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(42.dp))
+                Slider(
+                    value = rInt.toFloat(),
+                    onValueChange = { v -> updateActiveChannelColor(Color(v.roundToInt(), gInt, bInt)) },
+                    valueRange = 0f..255f,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("G $gInt", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(42.dp))
+                Slider(
+                    value = gInt.toFloat(),
+                    onValueChange = { v -> updateActiveChannelColor(Color(rInt, v.roundToInt(), bInt)) },
+                    valueRange = 0f..255f,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("B $bInt", style = MaterialTheme.typography.labelSmall, modifier = Modifier.width(42.dp))
+                Slider(
+                    value = bInt.toFloat(),
+                    onValueChange = { v -> updateActiveChannelColor(Color(rInt, gInt, v.roundToInt())) },
+                    valueRange = 0f..255f,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+
+            // 5. #RRGGBB 色号直接输入与智能配底纸
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = hexInput,
+                    onValueChange = { v ->
+                        hexInput = v
+                        val cleaned = v.trim().removePrefix("#")
+                        if (cleaned.length == 6 && cleaned.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }) {
+                            val norm = "#${cleaned.uppercase()}"
+                            when (activeChannel) {
+                                0 -> onUpdateColors(norm, secondaryHex, backgroundHex)
+                                1 -> onUpdateColors(primaryHex, norm, backgroundHex)
+                                else -> onUpdateColors(primaryHex, secondaryHex, norm)
+                            }
+                        }
+                    },
+                    label = { Text("色号 (#RRGGBB)") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    onClick = {
+                        val pColor = parseKittenHexColor(primaryHex, Color(0xFFF29CB8))
+                        val autoBg = colorToKittenHex(
+                            androidx.compose.ui.graphics.lerp(pColor, Color.White, 0.93f)
+                        )
+                        onUpdateColors(primaryHex, secondaryHex, autoBg)
+                    }
+                ) {
+                    Text("智能配底纸", style = MaterialTheme.typography.labelSmall)
                 }
             }
         }
@@ -1212,7 +1545,7 @@ private fun BubbleAndCotSection(
             Slider(
                 value = preset.bubbleCornerRadiusDp.toFloat(),
                 onValueChange = { onUpdate(preset.copy(bubbleCornerRadiusDp = it.roundToInt())) },
-                valueRange = 4f..32f,
+                valueRange = 0f..45f,
             )
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -403,10 +403,20 @@ private fun ReasoningContent(
             null
         }
     }
+    val resolvedFontWeight = androidx.compose.ui.text.font.FontWeight(displaySettings.chatFontWeight.coerceIn(100, 900))
+    val resolvedFontFamily = remember(displaySettings.chatFontFamily, displaySettings.customFontPath, displaySettings.chatFontWeight) {
+        me.rerere.rikkahub.ui.theme.resolveChatFontFamily(
+            chatFontFamily = displaySettings.chatFontFamily,
+            customFontPath = displaySettings.customFontPath,
+            weightVal = displaySettings.chatFontWeight,
+        )
+    }
     val thinkingStyle = MaterialTheme.typography.bodySmall.copy(
         fontSize = MaterialTheme.typography.bodySmall.fontSize * displaySettings.thinkingFontSizeRatio,
         lineHeight = MaterialTheme.typography.bodySmall.lineHeight * displaySettings.thinkingFontSizeRatio,
         color = customCotTextColor ?: Color.Unspecified,
+        fontWeight = resolvedFontWeight,
+        fontFamily = resolvedFontFamily,
     )
     val isEnglishSource = remember(reasoning.reasoning) {
         ReasoningTranslator.isMostlyEnglish(reasoning.reasoning)
