@@ -204,7 +204,7 @@ class ProactiveMessageService : KoinComponent {
             scheduleNext(context, setting)
             // 立即触发：直接启动TriggerService，并传入强制触发标记（跳过最小间隔去重与DataStore异步写入竞态）
             val serviceIntent = Intent(context, ProactiveMessageTriggerService::class.java).apply {
-                putExtra(EXTRA_FORCE_TRIGGER, true)
+                putExtra(ProactiveMessageTriggerService.EXTRA_FORCE_TRIGGER, true)
             }
             context.startForegroundService(serviceIntent)
         }
@@ -604,17 +604,13 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                     addAll(historyMessages)
                     add(processedUserMessage)
                 }
-                val injectedMessages = listOf(PromptInjectionTransformer).fold(rawMessages) { acc, transformer ->
-                    transformer.transform(
-                        ctx = me.rerere.rikkahub.data.ai.transformers.TransformerContext(
-                            context = this@ProactiveMessageTriggerService,
-                            model = model,
-                            assistant = assistant,
-                            settings = settings
-                        ),
-                        messages = acc
-                    )
-                }
+                val injectedMessages = rawMessages.transforms(
+                    transformers = listOf(PromptInjectionTransformer),
+                    context = this@ProactiveMessageTriggerService,
+                    model = model,
+                    assistant = assistant,
+                    settings = settings
+                )
                 // 合并相邻同角色消息，并确保最后一条非 SYSTEM 消息一定是 USER（若因特殊注入落尾了非 USER 消息，把 processedUserMessage 兜底置于末尾）
                 val mergedMessages = mergeAdjacentSameRoleMessages(injectedMessages)
                 val messages = if (mergedMessages.lastOrNull { it.role != MessageRole.SYSTEM }?.role != MessageRole.USER) {
