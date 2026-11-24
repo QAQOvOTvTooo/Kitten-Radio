@@ -614,24 +614,26 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         messages: List<UIMessage>,
         sendHistoryReasoning: Boolean = false,
     ): JsonArray {
+        val validMessages = messages.filter { it.role != MessageRole.SYSTEM && it.isValidToUpload() }
         return buildJsonArray {
-            messages
-                .filter { it.role != MessageRole.SYSTEM && it.isValidToUpload() }
-                .forEach { message ->
-                    if (message.role == MessageRole.ASSISTANT) {
-                        addModelMessage(message, sendHistoryReasoning)
-                    } else {
-                        addUserMessage(message)
-                    }
+            validMessages.forEachIndexed { index, message ->
+                val isLastMessage = index == validMessages.lastIndex
+                if (message.role == MessageRole.ASSISTANT) {
+                    addModelMessage(message, sendHistoryReasoning, isLastMessage)
+                } else {
+                    addUserMessage(message)
                 }
+            }
         }
     }
 
     private fun JsonArrayBuilder.addModelMessage(
         message: UIMessage,
         sendHistoryReasoning: Boolean = false,
+        isLastMessage: Boolean = false,
     ) {
         val groups = groupPartsByToolBoundary(message.parts)
+        val hasTools = groups.any { it is PartGroup.Tools }
         val partsBuffer = mutableListOf<JsonObject>()
 
         for (group in groups) {
@@ -704,8 +706,8 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             }
         }
 
-        // 输出剩余内容
-        if (partsBuffer.isNotEmpty()) {
+        // 输出剩余内容（若当前是最后一条消息且包含已执行工具，正处于工具回传阶段，绝不在 functionResponse(user) 后再追加 model turn）
+        if (partsBuffer.isNotEmpty() && !(isLastMessage && hasTools)) {
             add(buildJsonObject {
                 put("role", "model")
                 putJsonArray("parts") { partsBuffer.forEach { add(it) } }
