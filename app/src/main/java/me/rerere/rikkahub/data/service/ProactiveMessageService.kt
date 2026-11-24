@@ -202,8 +202,10 @@ class ProactiveMessageService : KoinComponent {
         fun triggerNow(context: Context, setting: ProactiveMessageSetting) {
             // 先安排下一次（写入SP让UI立即显示），再立即触发
             scheduleNext(context, setting)
-            // 立即触发：直接启动TriggerService
-            val serviceIntent = Intent(context, ProactiveMessageTriggerService::class.java)
+            // 立即触发：直接启动TriggerService，并传入强制触发标记（跳过最小间隔去重与DataStore异步写入竞态）
+            val serviceIntent = Intent(context, ProactiveMessageTriggerService::class.java).apply {
+                putExtra(EXTRA_FORCE_TRIGGER, true)
+            }
             context.startForegroundService(serviceIntent)
         }
     }
@@ -465,8 +467,8 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 val settings = settingsStore.settingsFlow.first()
                 val proactiveSetting = settings.proactiveMessageSetting
 
-                // 激进模式设备事件触发时，不检查主动消息开关（可独立工作）
-                if (!proactiveSetting.enabled && !isFromDeviceEvent) {
+                // 激进模式设备事件触发或手动强制触发时，不因 DataStore 尚未落盘而误判关闭
+                if (!proactiveSetting.enabled && !isFromDeviceEvent && !isForceTrigger) {
                     stopSelf()
                     return@launch
                 }
@@ -581,27 +583,45 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                     ))
                 )
 
-                // 应用输入转换器
+                // 应用输入转换器（先排除 PromptInjectionTransformer，避免单条 userMessage 无 SYSTEM 消息时在第 0 位插入 SYSTEM 导致 .first() 吞掉 USER 消息）
+                val singleMessageTransformers = (inputTransformers + templateTransformer).filterNot {
+                    it is PromptInjectionTransformer
+                }
                 val processedUserMessage = listOf(userMessage).transforms(
-                    transformers = inputTransformers + templateTransformer,
+                    transformers = singleMessageTransformers,
                     context = this@ProactiveMessageTriggerService,
                     model = model,
                     assistant = assistant,
                     settings = settings
-                ).first()
+                ).lastOrNull { it.role == MessageRole.USER } ?: userMessage
 
-                // 组合完整消息列表：System + History + User Context
-                // 合并相邻同角色消息（包括 history 末尾与合成 User 消息之间可能出现的 USER-USER 相邻），避免 400
-                val messages = mergeAdjacentSameRoleMessages(
-                    buildList {
-                        add(UIMessage(
-                            role = MessageRole.SYSTEM,
-                            parts = listOf(UIMessagePart.Text(systemPrompt))
-                        ))
-                        addAll(historyMessages)
-                        add(processedUserMessage)
-                    }
-                )
+                // 组合完整消息列表（System + History + User Context），再对完整列表应用 PromptInjectionTransformer（确保模式注入/世界书正常生效且不破坏末尾 USER 角色）
+                val rawMessages = buildList {
+                    add(UIMessage(
+                        role = MessageRole.SYSTEM,
+                        parts = listOf(UIMessagePart.Text(systemPrompt))
+                    ))
+                    addAll(historyMessages)
+                    add(processedUserMessage)
+                }
+                val injectedMessages = listOf(PromptInjectionTransformer).fold(rawMessages) { acc, transformer ->
+                    transformer.transform(
+                        ctx = me.rerere.rikkahub.data.ai.transformers.TransformerContext(
+                            context = this@ProactiveMessageTriggerService,
+                            model = model,
+                            assistant = assistant,
+                            settings = settings
+                        ),
+                        messages = acc
+                    )
+                }
+                // 合并相邻同角色消息，并确保最后一条非 SYSTEM 消息一定是 USER（若因特殊注入落尾了非 USER 消息，把 processedUserMessage 兜底置于末尾）
+                val mergedMessages = mergeAdjacentSameRoleMessages(injectedMessages)
+                val messages = if (mergedMessages.lastOrNull { it.role != MessageRole.SYSTEM }?.role != MessageRole.USER) {
+                    mergeAdjacentSameRoleMessages(mergedMessages + processedUserMessage)
+                } else {
+                    mergedMessages
+                }
 
                 // 直接调用 AI API 生成消息
                 val providerSetting = model.findProvider(settings.providers)
@@ -1231,15 +1251,22 @@ class ProactiveMessageTriggerService : android.app.Service(), KoinComponent {
                 }
             }
 
-            // 更新消息中的工具状态
+            // 更新消息中的工具状态（确保每个已执行工具的 output 非空，并将工具调用排在当前 assistant 消息末尾，防止 Google/Vertex 序列化时在 functionResponse 后多出 model turn）
             val updatedParts = processedMessage.parts.map { part ->
                 if (part is UIMessagePart.Tool) {
-                    executedTools.find { it.toolCallId == part.toolCallId } ?: part
+                    val executed = executedTools.find { it.toolCallId == part.toolCallId } ?: part
+                    if (executed.output.isEmpty()) {
+                        executed.copy(output = listOf(UIMessagePart.Text("{}")))
+                    } else {
+                        executed
+                    }
                 } else {
                     part
                 }
             }
-            val updatedMessage = processedMessage.copy(parts = updatedParts)
+            val nonToolParts = updatedParts.filterNot { it is UIMessagePart.Tool }
+            val toolParts = updatedParts.filterIsInstance<UIMessagePart.Tool>()
+            val updatedMessage = processedMessage.copy(parts = nonToolParts + toolParts)
             messages[messages.lastIndex] = updatedMessage
             // 更新 session 状态（带工具结果的消息，用 id 匹配就地更新）
             updateOrAppendAiMessage(conversationId, updatedMessage)
